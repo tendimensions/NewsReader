@@ -1,0 +1,219 @@
+workflows:
+  # iOS Workflow
+  ios-workflow:
+    name: iOS Build & Deploy
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.softupdate.newsReader
+      
+      vars:
+        # NewsAPI.org API Key - set in CodeMagic UI as secure environment variable
+        NEWS_API_KEY: $NEWS_API_KEY
+        
+        # Firebase App Distribution
+        FIREBASE_APP_ID_IOS: $FIREBASE_APP_ID_IOS
+        
+        # App Store Connect (for future releases)
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+        - pattern: 'develop'
+          include: true
+          source: true
+    
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      
+      - name: Flutter analyze
+        script: |
+          flutter analyze
+      
+      - name: Run tests
+        script: |
+          flutter test
+        ignore_failure: false
+      
+      - name: Build iOS
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - flutter_drive.log
+    
+    publishing:
+      firebase:
+        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
+        ios:
+          app_id: $FIREBASE_APP_ID_IOS
+          groups:
+            - testers
+            - internal
+          
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
+
+  # Android Workflow
+  android-workflow:
+    name: Android Build & Deploy
+    instance_type: linux_x2
+    max_build_duration: 60
+    
+    environment:
+      android_signing:
+        - keystore_reference
+      
+      groups:
+        - google_play
+      
+      vars:
+        # NewsAPI.org API Key - set in CodeMagic UI as secure environment variable
+        NEWS_API_KEY: $NEWS_API_KEY
+        
+        # Firebase App Distribution
+        FIREBASE_APP_ID_ANDROID: $FIREBASE_APP_ID_ANDROID
+        
+        # Package name
+        PACKAGE_NAME: com.softupdate.newsReader
+        
+      flutter: stable
+      java: 17
+    
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+        - pattern: 'develop'
+          include: true
+          source: true
+    
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      
+      - name: Flutter analyze
+        script: |
+          flutter analyze
+      
+      - name: Run tests
+        script: |
+          flutter test
+        ignore_failure: false
+      
+      - name: Build Android APK
+        script: |
+          flutter build apk --release
+      
+      - name: Build Android App Bundle
+        script: |
+          flutter build appbundle --release
+    
+    artifacts:
+      - build/app/outputs/**/*.apk
+      - build/app/outputs/**/*.aab
+      - build/app/outputs/**/mapping.txt
+      - flutter_drive.log
+    
+    publishing:
+      firebase:
+        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
+        android:
+          app_id: $FIREBASE_APP_ID_ANDROID
+          groups:
+            - testers
+            - internal
+      
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
+
+  # Development workflow - faster, no distribution
+  dev-workflow:
+    name: Dev Build (Quick Check)
+    instance_type: linux_x2
+    max_build_duration: 30
+    
+    environment:
+      flutter: stable
+      java: 17
+    
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+    
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      
+      - name: Flutter analyze
+        script: |
+          flutter analyze
+      
+      - name: Run tests
+        script: |
+          flutter test
+        ignore_failure: false
+      
+      - name: Build APK (debug)
+        script: |
+          flutter build apk --debug
+    
+    artifacts:
+      - build/app/outputs/**/*.apk
+    
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: false
+          failure: true
