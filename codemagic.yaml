@@ -10,17 +10,19 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.softupdate.newsReader
       
+      groups:
+        # Create these groups in CodeMagic UI (Teams > Global variables and secrets)
+        - firebase  # Contains FIREBASE_SERVICE_ACCOUNT, FIREBASE_APP_ID_IOS, FIREBASE_APP_ID_ANDROID
+        # - news_api  # Optional: Contains NEWS_API_KEY
+      
       vars:
         # NewsAPI.org API Key - set in CodeMagic UI as secure environment variable
-        NEWS_API_KEY: $NEWS_API_KEY
-        
-        # Firebase App Distribution
-        FIREBASE_APP_ID_IOS: $FIREBASE_APP_ID_IOS
+        # NEWS_API_KEY: $NEWS_API_KEY
         
         # App Store Connect (for future releases)
-        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
-        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        # APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        # APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        # APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
         
       flutter: stable
       xcode: latest
@@ -88,18 +90,18 @@ workflows:
     max_build_duration: 60
     
     environment:
-      android_signing:
-        - keystore_reference
+      # android_signing:
+      #   - keystore_reference
       
       groups:
-        - google_play
+        # Create these groups in CodeMagic UI (Teams > Global variables and secrets)
+        - firebase  # Contains FIREBASE_SERVICE_ACCOUNT, FIREBASE_APP_ID_IOS, FIREBASE_APP_ID_ANDROID
+        # - google_play  # For future Play Store releases
+        # - news_api  # Optional: Contains NEWS_API_KEY
       
       vars:
         # NewsAPI.org API Key - set in CodeMagic UI as secure environment variable
-        NEWS_API_KEY: $NEWS_API_KEY
-        
-        # Firebase App Distribution
-        FIREBASE_APP_ID_ANDROID: $FIREBASE_APP_ID_ANDROID
+        # NEWS_API_KEY: $NEWS_API_KEY
         
         # Package name
         PACKAGE_NAME: com.softupdate.newsReader
