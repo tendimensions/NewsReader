@@ -1,4 +1,4 @@
-package com.softupdate.news_reader
+package com.tendimensions.newsreader
 
 import io.flutter.embedding.android.FlutterActivity
 

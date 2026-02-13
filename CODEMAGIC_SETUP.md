@@ -35,13 +35,13 @@ Go to your app settings in CodeMagic and add these environment variables (marked
 
 2. **Add iOS App**
    - Click "Add app" → iOS
-   - iOS bundle ID: `com.softupdate.newsReader`
+   - iOS bundle ID: `com.tendimensions.newsreader`
    - Download `GoogleService-Info.plist`
    - Place in `ios/Runner/` directory
 
 3. **Add Android App**
    - Click "Add app" → Android
-   - Android package name: `com.softupdate.newsReader`
+   - Android package name: `com.tendimensions.newsreader`
    - Download `google-services.json`
    - Place in `android/app/` directory
 
@@ -63,7 +63,7 @@ Go to your app settings in CodeMagic and add these environment variables (marked
    - Or use CodeMagic automatic code signing
 
 2. **Update codemagic.yaml** if bundle ID differs:
-   - Change `bundle_identifier: com.softupdate.newsReader` to your actual bundle ID
+   - Change `bundle_identifier: com.tendimensions.newsreader` to your actual bundle ID
 
 ## Android Code Signing
 

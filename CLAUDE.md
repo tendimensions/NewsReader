@@ -4,7 +4,7 @@
 
 Cross-platform news reader app built with Flutter (Dart SDK ^3.9.2). Aggregates articles from multiple RSS/Atom feed sources with deduplication. Targets **Android, iOS, Linux, and Windows** platforms.
 
-**Package name**: `com.softupdate.newsReader`
+**Package name**: `com.tendimensions.newsreader`
 
 ## Agent Instructions
 
