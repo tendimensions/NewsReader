@@ -133,13 +133,17 @@ class RssNewsSource implements INewsSource {
   List<Article> _parseRssFeed(RssFeed feed, String feedUrl) {
     final articles = <Article>[];
     final feedTitle = feed.title ?? 'RSS Feed';
+    debugPrint('[RssNewsSource] _parseRssFeed: feed.items count = ${feed.items?.length ?? "null"}');
 
     for (final item in feed.items ?? []) {
       try {
         final url = item.link;
         final title = item.title;
 
-        if (url == null || title == null) continue;
+        if (url == null || title == null) {
+          debugPrint('[RssNewsSource] Skipping item: url=$url, title=$title');
+          continue;
+        }
 
         final id = Uri.parse(url).host + url.hashCode.toString();
         final publishedAt = item.pubDate ?? DateTime.now();
@@ -154,10 +158,10 @@ class RssNewsSource implements INewsSource {
           publishedAt: publishedAt,
           sourceName: feedTitle,
           author: item.author ?? item.dc?.creator,
-          categories: item.categories?.map((c) => c.value ?? '').toList() ?? [],
+          categories: item.categories?.map((c) => c.value ?? '').toList().cast<String>() ?? <String>[],
         ));
       } catch (e) {
-        // Skip malformed items
+        debugPrint('[RssNewsSource] Error parsing item: $e');
         continue;
       }
     }
@@ -169,13 +173,17 @@ class RssNewsSource implements INewsSource {
   List<Article> _parseAtomFeed(AtomFeed feed, String feedUrl) {
     final articles = <Article>[];
     final feedTitle = feed.title ?? 'Atom Feed';
+    debugPrint('[RssNewsSource] _parseAtomFeed: feed.items count = ${feed.items?.length ?? "null"}');
 
     for (final entry in feed.items ?? []) {
       try {
         final url = entry.links?.firstOrNull?.href;
         final title = entry.title;
 
-        if (url == null || title == null) continue;
+        if (url == null || title == null) {
+          debugPrint('[RssNewsSource] Skipping Atom entry: url=$url, title=$title');
+          continue;
+        }
 
         final id = Uri.parse(url).host + url.hashCode.toString();
         final publishedAt = entry.published ?? entry.updated ?? DateTime.now();
@@ -190,7 +198,7 @@ class RssNewsSource implements INewsSource {
           publishedAt: publishedAt,
           sourceName: feedTitle,
           author: entry.authors?.firstOrNull?.name,
-          categories: entry.categories?.map((c) => c.term ?? '').toList() ?? [],
+          categories: entry.categories?.map((c) => c.term ?? '').toList().cast<String>() ?? <String>[],
         ));
       } catch (e) {
         // Skip malformed items
