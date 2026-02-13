@@ -182,6 +182,9 @@ workflows:
     max_build_duration: 30
     
     environment:
+      groups:
+        - firebase_credentials  # For NOTIFICATION_EMAIL
+      
       flutter: stable
       java: 17
     
