@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:flutter/foundation.dart';
 import '../models/article.dart';
 import 'news_sources/i_news_source.dart';
 
@@ -18,17 +19,22 @@ class NewsAggregatorService {
     int limit = 20,
     int offset = 0,
   }) async {
+    debugPrint('[Aggregator] fetchArticles called: ${sources.length} sources, limit=$limit');
     final allArticles = <Article>[];
 
     // Fetch from all sources in parallel
     final results = await Future.wait(
       sources.map((source) async {
         try {
-          return await source.fetchArticles(
+          debugPrint('[Aggregator] Fetching from source: ${source.sourceName}');
+          final articles = await source.fetchArticles(
             category: category,
             limit: limit,
           );
+          debugPrint('[Aggregator] Source ${source.sourceName} returned ${articles.length} articles');
+          return articles;
         } catch (e) {
+          debugPrint('[Aggregator] ERROR from ${source.sourceName}: $e');
           log('Error fetching from ${source.sourceName}: $e');
           return <Article>[];
         }
@@ -39,9 +45,11 @@ class NewsAggregatorService {
     for (final articles in results) {
       allArticles.addAll(articles);
     }
+    debugPrint('[Aggregator] Total before dedup: ${allArticles.length}');
 
     // Deduplicate
     final deduplicated = _deduplicate(allArticles);
+    debugPrint('[Aggregator] After dedup: ${deduplicated.length}');
 
     // Sort by date (newest first)
     deduplicated.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
@@ -49,6 +57,7 @@ class NewsAggregatorService {
     // Apply pagination
     final start = offset;
     final end = (offset + limit).clamp(0, deduplicated.length);
+    debugPrint('[Aggregator] Returning ${end - start} articles (offset=$start, limit=$limit)');
 
     return deduplicated.sublist(start, end);
   }

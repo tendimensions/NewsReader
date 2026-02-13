@@ -176,6 +176,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             tooltip: 'Test feed',
             onPressed: () => _testFeed(feed),
           ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 20),
+            tooltip: 'Edit feed',
+            onPressed: () =>
+                _showEditFeedDialog(context, feed, feedsNotifier),
+          ),
           Switch(
             value: feed.enabled,
             onChanged: (v) => feedsNotifier.toggleFeed(feed.url, v),
@@ -235,6 +241,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               }
             },
             child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+  void _showEditFeedDialog(
+      BuildContext context, FeedConfig feed, FeedConfigNotifier feedsNotifier) {
+    final nameController = TextEditingController(text: feed.name);
+    final urlController = TextEditingController(text: feed.url);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Feed'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Feed name',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(
+                labelText: 'RSS feed URL',
+              ),
+              keyboardType: TextInputType.url,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              final url = urlController.text.trim();
+              if (name.isNotEmpty && url.isNotEmpty) {
+                feedsNotifier.updateFeed(feed.url, url, name);
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),

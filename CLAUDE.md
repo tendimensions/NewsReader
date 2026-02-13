@@ -69,12 +69,14 @@ lib/
 │   ├── repositories_provider.dart         # Singleton repo providers (overridden in main)
 │   ├── theme_provider.dart                # ThemeMode StateNotifier
 │   ├── feed_provider.dart                 # Feed configs, aggregator, articles AsyncNotifier
-│   └── bookmarks_provider.dart            # Bookmarks StateNotifier
+│   ├── bookmarks_provider.dart            # Bookmarks StateNotifier
+│   └── article_state_provider.dart        # Read/unread + deleted article tracking
 ├── repositories/
 │   ├── feed_config_repository.dart        # Hive-backed feed config CRUD + defaults
 │   ├── bookmarks_repository.dart          # Hive-backed bookmark storage
 │   ├── article_cache_repository.dart      # Hive-backed offline cache (max 200 articles)
-│   └── settings_repository.dart           # Hive-backed app settings
+│   ├── settings_repository.dart           # Hive-backed app settings
+│   └── article_state_repository.dart      # Hive-backed read/deleted article IDs
 ├── screens/
 │   ├── feed_screen.dart                   # Main reverse-chron feed + search + bookmarks sheet
 │   ├── article_screen.dart                # Reader mode article view
@@ -121,4 +123,3 @@ flutter build windows    # Build Windows
 - API keys (NEWS_API_KEY) must be configured as secure environment variables in CodeMagic, never committed
 - Firebase config files (`google-services.json`, `GoogleService-Info.plist`) are gitignored
 - Tests are minimal (only default `widget_test.dart`) — expand as features are built
-- `example_usage.dart` is a demo file and can be removed once the real app is wired up

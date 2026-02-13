@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:webfeed/webfeed.dart';
 import '../../models/article.dart';
@@ -27,16 +28,21 @@ class RssNewsSource implements INewsSource {
     try {
       final allArticles = <Article>[];
 
+      debugPrint('[RssNewsSource] Fetching from ${feedUrls.length} feeds...');
       // Fetch from all configured RSS feeds
       for (final feedUrl in feedUrls) {
         try {
+          debugPrint('[RssNewsSource] Fetching: $feedUrl');
           final articles = await _fetchFromFeed(feedUrl);
+          debugPrint('[RssNewsSource] Got ${articles.length} articles from $feedUrl');
           allArticles.addAll(articles);
         } catch (e) {
           // Continue with other feeds if one fails
+          debugPrint('[RssNewsSource] FAILED $feedUrl: $e');
           log('Failed to fetch from $feedUrl: $e');
         }
       }
+      debugPrint('[RssNewsSource] Total articles before pagination: ${allArticles.length}');
 
       // Sort by date (newest first)
       allArticles.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
@@ -97,6 +103,7 @@ class RssNewsSource implements INewsSource {
   /// Fetch and parse articles from a single RSS feed
   Future<List<Article>> _fetchFromFeed(String feedUrl) async {
     final response = await http.get(Uri.parse(feedUrl));
+    debugPrint('[RssNewsSource] HTTP ${response.statusCode} from $feedUrl (${response.body.length} bytes)');
 
     if (response.statusCode != 200) {
       throw Exception('Failed to fetch RSS feed: ${response.statusCode}');
@@ -105,14 +112,19 @@ class RssNewsSource implements INewsSource {
     // Try parsing as RSS first
     try {
       final rssFeed = RssFeed.parse(response.body);
-      return _parseRssFeed(rssFeed, feedUrl);
+      final articles = _parseRssFeed(rssFeed, feedUrl);
+      debugPrint('[RssNewsSource] Parsed ${articles.length} RSS items from $feedUrl');
+      return articles;
     } catch (e) {
+      debugPrint('[RssNewsSource] RSS parse failed for $feedUrl: $e, trying Atom...');
       // If RSS parsing fails, try Atom
       try {
         final atomFeed = AtomFeed.parse(response.body);
-        return _parseAtomFeed(atomFeed, feedUrl);
-      } catch (e) {
-        throw Exception('Failed to parse feed as RSS or Atom: $e');
+        final articles = _parseAtomFeed(atomFeed, feedUrl);
+        debugPrint('[RssNewsSource] Parsed ${articles.length} Atom items from $feedUrl');
+        return articles;
+      } catch (e2) {
+        throw Exception('Failed to parse feed as RSS or Atom: $e2');
       }
     }
   }

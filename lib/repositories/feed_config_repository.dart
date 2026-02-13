@@ -32,6 +32,26 @@ class FeedConfigRepository {
     await _box.delete(url);
   }
 
+  Future<void> updateFeed(String oldUrl, String newUrl, String newName) async {
+    final feed = _box.get(oldUrl);
+    if (feed == null) return;
+    final enabled = feed.enabled;
+    final isBuiltIn = feed.isBuiltIn;
+    // If the URL changed, remove the old entry and add a new one
+    if (oldUrl != newUrl) {
+      await _box.delete(oldUrl);
+    }
+    await _box.put(
+      newUrl,
+      FeedConfig(
+        url: newUrl,
+        name: newName,
+        enabled: enabled,
+        isBuiltIn: isBuiltIn,
+      ),
+    );
+  }
+
   Future<void> toggleFeed(String url, bool enabled) async {
     final feed = _box.get(url);
     if (feed != null) {

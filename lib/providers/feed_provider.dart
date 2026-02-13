@@ -1,4 +1,4 @@
-import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/article.dart';
 import '../models/feed_config.dart';
@@ -33,6 +33,11 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
     state = _repo.getAll();
   }
 
+  Future<void> updateFeed(String oldUrl, String newUrl, String newName) async {
+    await _repo.updateFeed(oldUrl, newUrl, newName);
+    state = _repo.getAll();
+  }
+
   Future<void> toggleFeed(String url, bool enabled) async {
     await _repo.toggleFeed(url, enabled);
     state = _repo.getAll();
@@ -48,12 +53,18 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
 final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
   final configs = ref.watch(feedConfigsProvider);
   final enabledConfigs = configs.where((c) => c.enabled).toList();
+  debugPrint('[FeedProvider] Building aggregator: ${enabledConfigs.length} enabled feeds');
 
   if (enabledConfigs.isEmpty) {
+    debugPrint('[FeedProvider] No enabled feeds!');
     return NewsAggregatorService(
       sources: [],
       deduplicationStrategy: DeduplicationStrategy.combined,
     );
+  }
+
+  for (final c in enabledConfigs) {
+    debugPrint('[FeedProvider]   Feed: ${c.name} -> ${c.url}');
   }
 
   final rssSource = RssNewsSource(
@@ -80,16 +91,22 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
     final articleState = ref.watch(articleStateProvider);
 
     try {
+      debugPrint('[ArticlesNotifier] build() called, fetching articles...');
       final articles = await aggregator.fetchArticles(limit: 50);
-      developer.log('Fetched ${articles.length} articles from aggregator');
+      debugPrint('[ArticlesNotifier] Fetched ${articles.length} articles from aggregator');
+      debugPrint('[ArticlesNotifier] Deleted IDs: ${articleState.deletedIds.length}');
       await cacheRepo.cacheArticles(articles);
-      return articles
+      final filtered = articles
           .where((a) => !articleState.deletedIds.contains(a.id))
           .toList();
-    } catch (e) {
-      developer.log('Error fetching articles: $e');
+      debugPrint('[ArticlesNotifier] Returning ${filtered.length} articles after filtering');
+      return filtered;
+    } catch (e, stack) {
+      debugPrint('[ArticlesNotifier] ERROR fetching articles: $e');
+      debugPrint('[ArticlesNotifier] Stack: $stack');
       final cached = cacheRepo.getAll();
       if (cached.isNotEmpty) {
+        debugPrint('[ArticlesNotifier] Falling back to ${cached.length} cached articles');
         return cached
             .where((a) => !articleState.deletedIds.contains(a.id))
             .toList();
@@ -99,8 +116,10 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
   }
 
   Future<void> refresh() async {
+    debugPrint('[ArticlesNotifier] refresh() called');
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => build());
+    debugPrint('[ArticlesNotifier] refresh() done, state: ${state.hasValue ? "${state.value!.length} articles" : state.hasError ? "error: ${state.error}" : "loading"}');
   }
 
   Future<List<Article>> search(String query) async {
