@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -192,12 +193,33 @@ class ArticleScreen extends ConsumerWidget {
   }
 
   Future<void> _openInBrowser(BuildContext context) async {
-    final uri = Uri.parse(article.url);
+    final url = article.url;
+    final uri = Uri.parse(url);
+
+    // Try url_launcher first (works on native Windows, Android, iOS, macOS)
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
+      return;
+    }
+
+    // Fallback for WSL: use cmd.exe to open in Windows browser
+    if (Platform.isLinux) {
+      try {
+        // Check if running under WSL
+        final result = await Process.run('wslview', [url]);
+        if (result.exitCode == 0) return;
+      } catch (_) {
+        // wslview not available, try xdg-open directly
+        try {
+          final result = await Process.run('xdg-open', [url]);
+          if (result.exitCode == 0) return;
+        } catch (_) {}
+      }
+    }
+
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open ${article.url}')),
+        SnackBar(content: Text('Could not open $url')),
       );
     }
   }
