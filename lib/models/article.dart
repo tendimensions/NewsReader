@@ -1,20 +1,46 @@
+import 'package:hive/hive.dart';
+
+part 'article.g.dart';
+
 /// Represents a news article from any source
-class Article {
+@HiveType(typeId: 0)
+class Article extends HiveObject {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   final String title;
+
+  @HiveField(2)
   final String? description;
+
+  @HiveField(3)
   final String? content;
+
+  @HiveField(4)
   final String url;
+
+  @HiveField(5)
   final String? imageUrl;
+
+  @HiveField(6)
   final DateTime publishedAt;
+
+  @HiveField(7)
   final String sourceName;
+
+  @HiveField(8)
   final String? author;
+
+  @HiveField(9)
   final List<String> categories;
-  
+
   /// Number of sources that reported this article
+  @HiveField(10)
   final int sourceCount;
-  
+
   /// List of all source names that reported this article
+  @HiveField(11)
   final List<String> sourceNames;
 
   Article({
@@ -107,7 +133,6 @@ class Article {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-
     return other is Article && other.id == id;
   }
 

@@ -1,4 +1,4 @@
-import '../models/article.dart';
+import '../../models/article.dart';
 
 /// Common interface for all news sources
 /// Implement this interface to add a new news source to the aggregator

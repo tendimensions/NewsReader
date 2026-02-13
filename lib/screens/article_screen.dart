@@ -1,0 +1,182 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/article.dart';
+import '../providers/bookmarks_provider.dart';
+
+/// Reader mode article view — clean, distraction-free layout
+class ArticleScreen extends ConsumerWidget {
+  final Article article;
+
+  const ArticleScreen({super.key, required this.article});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
+    final isBookmarked = ref.watch(bookmarksProvider
+        .select((list) => list.any((a) => a.id == article.id)));
+
+    return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: Icon(
+              isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+            ),
+            tooltip: isBookmarked ? 'Remove bookmark' : 'Bookmark',
+            onPressed: () => bookmarksNotifier.toggle(article),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Source + date
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    article.sourceName,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (article.sourceCount > 1) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${article.sourceCount} sources',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                const Spacer(),
+                Text(
+                  _formatDate(article.publishedAt),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Title
+            Text(
+              article.title,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            // Author
+            if (article.author != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'By ${article.author}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Image
+            if (article.imageUrl != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  article.imageUrl!,
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            const Divider(),
+            const SizedBox(height: 12),
+
+            // Content — prefer full content, fall back to description
+            Text(
+              article.content ?? article.description ?? 'No content available.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                height: 1.6,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Categories
+            if (article.categories.isNotEmpty) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: article.categories
+                    .where((c) => c.isNotEmpty)
+                    .map((cat) => Chip(
+                          label: Text(cat),
+                          visualDensity: VisualDensity.compact,
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Source link
+            if (article.sourceNames.length > 1) ...[
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Also reported by:',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                article.sourceNames
+                    .where((s) => s != article.sourceName)
+                    .join(', '),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dateTime) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
+  }
+}

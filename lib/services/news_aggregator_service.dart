@@ -1,3 +1,4 @@
+import 'dart:developer';
 import '../models/article.dart';
 import 'news_sources/i_news_source.dart';
 
@@ -28,7 +29,7 @@ class NewsAggregatorService {
             limit: limit,
           );
         } catch (e) {
-          print('Error fetching from ${source.sourceName}: $e');
+          log('Error fetching from ${source.sourceName}: $e');
           return <Article>[];
         }
       }),
@@ -69,7 +70,7 @@ class NewsAggregatorService {
             limit: limit,
           );
         } catch (e) {
-          print('Error searching ${source.sourceName}: $e');
+          log('Error searching ${source.sourceName}: $e');
           return <Article>[];
         }
       }),
@@ -102,7 +103,7 @@ class NewsAggregatorService {
         final categories = await source.getCategories();
         allCategories.addAll(categories);
       } catch (e) {
-        print('Error getting categories from ${source.sourceName}: $e');
+        log('Error getting categories from ${source.sourceName}: $e');
       }
     }
 

@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:webfeed/webfeed.dart';
 import '../../models/article.dart';
@@ -33,7 +34,7 @@ class RssNewsSource implements INewsSource {
           allArticles.addAll(articles);
         } catch (e) {
           // Continue with other feeds if one fails
-          print('Failed to fetch from $feedUrl: $e');
+          log('Failed to fetch from $feedUrl: $e');
         }
       }
 
@@ -100,8 +101,6 @@ class RssNewsSource implements INewsSource {
     if (response.statusCode != 200) {
       throw Exception('Failed to fetch RSS feed: ${response.statusCode}');
     }
-
-    final contentType = response.headers['content-type'] ?? '';
 
     // Try parsing as RSS first
     try {
