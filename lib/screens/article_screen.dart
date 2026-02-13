@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/article.dart';
 import '../providers/bookmarks_provider.dart';
 
@@ -19,6 +20,11 @@ class ArticleScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            tooltip: 'Open in browser',
+            onPressed: () => _openInBrowser(context),
+          ),
           IconButton(
             icon: Icon(
               isBookmarked ? Icons.bookmark : Icons.bookmark_border,
@@ -165,11 +171,35 @@ class ArticleScreen extends ConsumerWidget {
               ),
             ],
 
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // Read full article button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _openInBrowser(context),
+                icon: const Icon(Icons.open_in_browser),
+                label: const Text('Read Full Article'),
+              ),
+            ),
+
             const SizedBox(height: 32),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _openInBrowser(BuildContext context) async {
+    final uri = Uri.parse(article.url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open ${article.url}')),
+      );
+    }
   }
 
   String _formatDate(DateTime dateTime) {
