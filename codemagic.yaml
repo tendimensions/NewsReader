@@ -12,7 +12,7 @@ workflows:
 
       ios_signing:
         distribution_type: ad_hoc
-        bundle_identifier: com.softupdate.newsReader
+        bundle_identifier: com.tendimensions.newsreader
 
       # vars:
         # App Store Connect (for future releases)
@@ -179,12 +179,12 @@ workflows:
 
       ios_signing:
         distribution_type: ad_hoc
-        bundle_identifier: com.softupdate.newsReader
+        bundle_identifier: com.tendimensions.newsreader
 
       flutter: stable
       xcode: latest
       cocoapods: default
-    
+
     triggering:
       events:
         - push
