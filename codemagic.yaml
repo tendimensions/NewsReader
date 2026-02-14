@@ -4,25 +4,26 @@ workflows:
     name: iOS Build & Deploy
     instance_type: mac_mini_m1
     max_build_duration: 60
-    
+
     environment:
       groups:
         # Create these groups in CodeMagic UI (Teams > Global variables and secrets)
         - firebase_credentials  # Contains FIREBASE_SERVICE_ACCOUNT, FIREBASE_IOS_APP_ID, FIREBASE_ANDROID_APP_ID, NOTIFICATION_EMAIL
-      
+
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.softupdate.newsReader
+
       # vars:
-        # NewsAPI.org API Key - set in CodeMagic UI as secure environment variable
-        # NEWS_API_KEY: $NEWS_API_KEY
-        
         # App Store Connect (for future releases)
         # APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
         # APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
         # APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
-        
+
       flutter: stable
       xcode: latest
       cocoapods: default
-    
+
     triggering:
       events:
         - push
@@ -34,32 +35,32 @@ workflows:
         - pattern: 'develop'
           include: true
           source: true
-    
+
     scripts:
       - name: Set up local.properties
         script: |
           echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
-      
+
       - name: Get Flutter packages
         script: |
           flutter packages pub get
-      
-      - name: Generate Hive adapters
-        script: |
-          dart run build_runner build --delete-conflicting-outputs
-      
+
       - name: Flutter analyze
         script: |
           flutter analyze
-      
+
       - name: Run tests
         script: |
           flutter test
         ignore_failure: false
-      
+
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+
       - name: Build iOS
         script: |
-          flutter build ipa --release --export-method=ad-hoc
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
     
     artifacts:
       - build/ios/ipa/*.ipa
@@ -127,19 +128,15 @@ workflows:
         script: |
           flutter packages pub get
       
-      - name: Generate Hive adapters
-        script: |
-          dart run build_runner build --delete-conflicting-outputs
-      
       - name: Flutter analyze
         script: |
           flutter analyze
-      
+
       - name: Run tests
         script: |
           flutter test
         ignore_failure: false
-      
+
       - name: Build Android APK
         script: |
           flutter build apk --release
@@ -179,7 +176,11 @@ workflows:
     environment:
       groups:
         - firebase_credentials
-      
+
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.softupdate.newsReader
+
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -202,22 +203,22 @@ workflows:
         script: |
           flutter packages pub get
       
-      - name: Generate Hive adapters
-        script: |
-          dart run build_runner build --delete-conflicting-outputs
-
       - name: Flutter analyze
         script: |
           flutter analyze
-      
+
       - name: Run tests
         script: |
           flutter test
         ignore_failure: false
-      
+
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+
       - name: Build iOS
         script: |
-          flutter build ipa --release --export-method=ad-hoc
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
       
       - name: Build Android APK
         script: |
