@@ -20,7 +20,7 @@ See [AGENTS.md](AGENTS.md) for issue tracking workflows using **beads** (`bd`).
 ### UI/UX
 - **Feed layout**: Single vertical scroll, reverse-chronological (newest first)
 - **Search**: Search bar at top of feed
-- **Article view**: Reader mode — extract and render article content in a clean, distraction-free layout
+- **Article view**: Reader mode with HTML rendering (`flutter_html`), selectable/copyable text, open in browser, and bookmarking
 - **Design system**: Material 3 with custom seed color
 - **Dark mode**: System-aware by default with manual override toggle in settings
 - **Platforms**: Android, iOS, Linux, Windows
@@ -49,6 +49,8 @@ See [AGENTS.md](AGENTS.md) for issue tracking workflows using **beads** (`bd`).
 - **Local storage**: Hive (`hive`, `hive_flutter`)
 - **HTTP**: `http` package
 - **RSS parsing**: `webfeed` package
+- **HTML rendering**: `flutter_html` for article content with embedded HTML
+- **URL launching**: `url_launcher` + WSL fallback for opening articles in browser
 - **CI/CD**: CodeMagic ([codemagic.yaml](codemagic.yaml), setup guide in [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md))
 - **Distribution**: Firebase App Distribution
 - **Linting**: `flutter_lints` via [analysis_options.yaml](analysis_options.yaml)
@@ -79,7 +81,7 @@ lib/
 │   └── article_state_repository.dart      # Hive-backed read/deleted article IDs
 ├── screens/
 │   ├── feed_screen.dart                   # Main reverse-chron feed + search + bookmarks sheet
-│   ├── article_screen.dart                # Reader mode article view
+│   ├── article_screen.dart                # Reader mode article view (HTML rendering, selectable text)
 │   └── settings_screen.dart               # Theme toggle, feed management, add custom feeds
 ├── services/
 │   ├── news_aggregator_service.dart       # Aggregator with deduplication strategies
@@ -114,9 +116,9 @@ flutter build windows    # Build Windows
 
 ## CI/CD Workflows (CodeMagic)
 
-- **ios-workflow**: push to `main`/`develop` → analyze → test → build IPA → Firebase distribution
-- **android-workflow**: push to `main`/`develop` → analyze → test → build APK+AAB → Firebase distribution
-- **dev-workflow**: PRs on any branch → analyze → test → debug APK (no distribution)
+- **ios-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → code signing → build IPA → Firebase distribution
+- **android-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → build APK+AAB → Firebase distribution
+- **dev-workflow**: push/PR on any branch → generate Hive adapters → analyze → test → build iOS + Android → Firebase distribution
 
 ## Important Notes
 

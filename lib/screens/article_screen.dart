@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/article.dart';
@@ -35,11 +36,12 @@ class ArticleScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SelectionArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Source + date
             Row(
               children: [
@@ -128,12 +130,8 @@ class ArticleScreen extends ConsumerWidget {
             const SizedBox(height: 12),
 
             // Content — prefer full content, fall back to description
-            Text(
-              article.content ?? article.description ?? 'No content available.',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                height: 1.6,
-              ),
-            ),
+            // Render as HTML if content contains tags, otherwise plain text
+            _buildContent(theme),
 
             const SizedBox(height: 24),
 
@@ -188,7 +186,50 @@ class ArticleScreen extends ConsumerWidget {
             const SizedBox(height: 32),
           ],
         ),
+        ),
       ),
+    );
+  }
+
+  Widget _buildContent(ThemeData theme) {
+    final raw = article.content ?? article.description ?? '';
+    if (raw.isEmpty) {
+      return Text(
+        'No content available.',
+        style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
+      );
+    }
+
+    // Check if content contains HTML tags
+    final hasHtml = RegExp(r'<[a-zA-Z][^>]*>').hasMatch(raw);
+    if (!hasHtml) {
+      return Text(
+        raw,
+        style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
+      );
+    }
+
+    return Html(
+      data: raw,
+      style: {
+        'body': Style(
+          fontSize: FontSize(theme.textTheme.bodyLarge?.fontSize ?? 16),
+          lineHeight: const LineHeight(1.6),
+          margin: Margins.zero,
+          padding: HtmlPaddings.zero,
+        ),
+        'a': Style(
+          color: theme.colorScheme.primary,
+        ),
+        'img': Style(
+          margin: Margins.symmetric(vertical: 8),
+        ),
+      },
+      onLinkTap: (url, _, __) {
+        if (url != null) {
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        }
+      },
     );
   }
 
