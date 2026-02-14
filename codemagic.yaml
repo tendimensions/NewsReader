@@ -6,13 +6,8 @@ workflows:
     max_build_duration: 60
     
     environment:
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.tendimensions.newsreader
-      
       groups:
         # Create these groups in CodeMagic UI (Teams > Global variables and secrets)
-        - ios_signing  # Contains CM_CERTIFICATE, CM_CERTIFICATE_PASSWORD, CM_PROVISIONING_PROFILE
         - firebase_credentials  # Contains FIREBASE_SERVICE_ACCOUNT, FIREBASE_IOS_APP_ID, FIREBASE_ANDROID_APP_ID, NOTIFICATION_EMAIL
       
       # vars:
@@ -182,12 +177,7 @@ workflows:
     max_build_duration: 60
     
     environment:
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.tendimensions.newsreader
-      
       groups:
-        - ios_signing
         - firebase_credentials
       
       flutter: stable
