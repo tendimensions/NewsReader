@@ -77,7 +77,6 @@ workflows:
           app_id: $FIREBASE_IOS_APP_ID
           groups:
             - testers
-            - internal
           
       email:
         recipients:
@@ -166,7 +165,6 @@ workflows:
           app_id: $FIREBASE_ANDROID_APP_ID
           groups:
             - testers
-            - internal
       
       email:
         recipients:
@@ -254,12 +252,11 @@ workflows:
           app_id: $FIREBASE_IOS_APP_ID
           groups:
             - testers
-            - internal
+
         android:
           app_id: $FIREBASE_ANDROID_APP_ID
           groups:
             - testers
-            - internal
       
       email:
         recipients:
