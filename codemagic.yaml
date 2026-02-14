@@ -45,6 +45,10 @@ workflows:
         script: |
           flutter packages pub get
 
+      - name: Generate Hive adapters
+        script: |
+          dart run build_runner build --delete-conflicting-outputs
+
       - name: Flutter analyze
         script: |
           flutter analyze
@@ -127,7 +131,11 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter packages pub get
-      
+
+      - name: Generate Hive adapters
+        script: |
+          dart run build_runner build --delete-conflicting-outputs
+
       - name: Flutter analyze
         script: |
           flutter analyze
@@ -202,7 +210,11 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter packages pub get
-      
+
+      - name: Generate Hive adapters
+        script: |
+          dart run build_runner build --delete-conflicting-outputs
+
       - name: Flutter analyze
         script: |
           flutter analyze
@@ -219,7 +231,7 @@ workflows:
       - name: Build iOS
         script: |
           flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
-      
+
       - name: Build Android APK
         script: |
           flutter build apk --release
