@@ -17,12 +17,14 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   bool _isSearching = false;
   List<Article>? _searchResults;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -152,7 +154,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                           onRefresh: () =>
                               ref.read(articlesProvider.notifier).refresh(),
                           child: _buildArticleList(
-                              articles, bookmarksNotifier, articleState, theme),
+                              articles, bookmarksNotifier, articleState, theme,
+                              scrollController: _scrollController),
                         ),
                         loading: () => const Center(
                             child: CircularProgressIndicator()),
@@ -199,8 +202,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     List<Article> articles,
     BookmarksNotifier bookmarksNotifier,
     ArticleStateData articleState,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    ScrollController? scrollController,
+  }) {
     if (articles.isEmpty) {
       return Center(
         child: Column(
@@ -228,6 +232,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     }
 
     return ListView.builder(
+      controller: scrollController,
       padding: const EdgeInsets.only(top: 4, bottom: 16),
       itemCount: articles.length,
       itemBuilder: (context, index) {
