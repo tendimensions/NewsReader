@@ -1,4 +1,6 @@
-# NewsReader - Claude Code Instructions
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -101,27 +103,47 @@ lib/
 - **Providers**: Riverpod providers expose aggregator, bookmarks, feed config, theme, and article cache state
 - **Repositories**: Hive-backed repositories for bookmarks, feed configuration, cached articles, and settings
 
+### Critical Riverpod Pattern
+
+**Do not use `ref.watch` inside `AsyncNotifier.build()` for providers that change at interaction time** (e.g. `articleStateProvider`). When a watched dependency changes, Riverpod disposes and re-runs `build()` entirely — including any network fetches — and transitions through `AsyncLoading` first. This unmounts `ListView` widgets and loses scroll position.
+
+Current intentional dependencies in `ArticlesNotifier.build()`:
+
+- `ref.watch(newsAggregatorProvider)` — intentional, feed config changes should trigger a re-fetch
+- `articleStateProvider` (read/deleted filtering) is **not** watched here; filtering happens in `FeedScreen`'s data callback instead
+
+### Scroll Position Preservation
+
+`FeedScreen` uses a `ScrollController` on the main `ListView`. This works because `FeedScreen`'s state stays mounted on the Navigator stack during article navigation. Any transition to `AsyncLoading` in `articlesProvider` would unmount the `ListView` and reset the controller — see the pattern above.
+
 ## Common Commands
 
 ```bash
 flutter pub get          # Install dependencies
 flutter run              # Run in debug mode
 flutter test             # Run tests
+flutter test test/widget_test.dart  # Run a single test file
 flutter analyze          # Run static analysis
 flutter build apk        # Build Android APK
 flutter build ios        # Build iOS
 flutter build linux      # Build Linux
 flutter build windows    # Build Windows
+dart run build_runner build --delete-conflicting-outputs  # Regenerate Hive adapters (required after editing models)
 ```
 
 ## CI/CD Workflows (CodeMagic)
 
-- **ios-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → code signing → build IPA → Firebase distribution
-- **android-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → build APK+AAB → Firebase distribution
-- **dev-workflow**: push/PR on any branch → generate Hive adapters → analyze → test → build iOS + Android → Firebase distribution
+- **ios-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → create release notes → code signing → build IPA → Firebase distribution
+- **android-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → create release notes → build APK → Firebase distribution
+- **dev-workflow**: push/PR on any branch → generate Hive adapters → analyze → test → create release notes → build iOS + Android → Firebase distribution
+
+Build numbers are injected via `--build-number=$BUILD_NUMBER` (CodeMagic auto-increment). Only `.apk` is built for Android — `.aab` requires a linked Google Play account and cannot be distributed via Firebase App Distribution alone.
+
+Release notes are generated from [CHANGELOG.md](CHANGELOG.md) at build time. Content above the first `---` line (after the title) is extracted into `release_notes.txt`.
 
 ## Important Notes
 
 - API keys (NEWS_API_KEY) must be configured as secure environment variables in CodeMagic, never committed
 - Firebase config files (`google-services.json`, `GoogleService-Info.plist`) are gitignored
 - Tests are minimal (only default `widget_test.dart`) — expand as features are built
+- After modifying any Hive model, regenerate adapters with `build_runner` before building

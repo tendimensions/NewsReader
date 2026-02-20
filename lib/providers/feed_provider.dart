@@ -88,28 +88,20 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
   Future<List<Article>> build() async {
     final aggregator = ref.watch(newsAggregatorProvider);
     final cacheRepo = ref.read(articleCacheRepositoryProvider);
-    final articleState = ref.watch(articleStateProvider);
 
     try {
       debugPrint('[ArticlesNotifier] build() called, fetching articles...');
       final articles = await aggregator.fetchArticles(limit: 50);
       debugPrint('[ArticlesNotifier] Fetched ${articles.length} articles from aggregator');
-      debugPrint('[ArticlesNotifier] Deleted IDs: ${articleState.deletedIds.length}');
       await cacheRepo.cacheArticles(articles);
-      final filtered = articles
-          .where((a) => !articleState.deletedIds.contains(a.id))
-          .toList();
-      debugPrint('[ArticlesNotifier] Returning ${filtered.length} articles after filtering');
-      return filtered;
+      return articles;
     } catch (e, stack) {
       debugPrint('[ArticlesNotifier] ERROR fetching articles: $e');
       debugPrint('[ArticlesNotifier] Stack: $stack');
       final cached = cacheRepo.getAll();
       if (cached.isNotEmpty) {
         debugPrint('[ArticlesNotifier] Falling back to ${cached.length} cached articles');
-        return cached
-            .where((a) => !articleState.deletedIds.contains(a.id))
-            .toList();
+        return cached;
       }
       rethrow;
     }

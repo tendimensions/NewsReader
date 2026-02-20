@@ -150,13 +150,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     ? _buildArticleList(
                         _searchResults!, bookmarksNotifier, articleState, theme)
                     : articlesAsync.when(
-                        data: (articles) => RefreshIndicator(
-                          onRefresh: () =>
-                              ref.read(articlesProvider.notifier).refresh(),
-                          child: _buildArticleList(
-                              articles, bookmarksNotifier, articleState, theme,
-                              scrollController: _scrollController),
-                        ),
+                        data: (articles) {
+                          final visible = articles
+                              .where((a) =>
+                                  !articleState.deletedIds.contains(a.id))
+                              .toList();
+                          return RefreshIndicator(
+                            onRefresh: () =>
+                                ref.read(articlesProvider.notifier).refresh(),
+                            child: _buildArticleList(
+                                visible, bookmarksNotifier, articleState, theme,
+                                scrollController: _scrollController),
+                          );
+                        },
                         loading: () => const Center(
                             child: CircularProgressIndicator()),
                         error: (err, _) => Center(
