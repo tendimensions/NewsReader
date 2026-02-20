@@ -58,14 +58,34 @@ workflows:
           flutter test
         ignore_failure: false
 
+      - name: Create release notes
+        script: |
+          echo "Build #$BUILD_NUMBER" > release_notes.txt
+          echo "Branch: $CM_BRANCH" >> release_notes.txt
+          echo "Commit: $(echo $CM_COMMIT | cut -c1-8)" >> release_notes.txt
+          echo "" >> release_notes.txt
+
+          if [ -f "CHANGELOG.md" ]; then
+            echo "Latest Changes:" >> release_notes.txt
+            echo "" >> release_notes.txt
+            sed '/^---$/q' CHANGELOG.md | sed '$d' | tail -n +3 >> release_notes.txt
+          else
+            echo "No CHANGELOG.md found." >> release_notes.txt
+          fi
+
+          echo "" >> release_notes.txt
+          echo "Built on: $(date)" >> release_notes.txt
+          echo "--- release_notes.txt ---"
+          cat release_notes.txt
+
       - name: Set up code signing
         script: |
           xcode-project use-profiles
 
       - name: Build iOS
         script: |
-          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
-    
+          flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+
     artifacts:
       - build/ios/ipa/*.ipa
       - flutter_drive.log
@@ -77,7 +97,7 @@ workflows:
           app_id: $FIREBASE_IOS_APP_ID
           groups:
             - testers
-          
+
       email:
         recipients:
           - $NOTIFICATION_EMAIL
@@ -144,20 +164,35 @@ workflows:
           flutter test
         ignore_failure: false
 
+      - name: Create release notes
+        script: |
+          echo "Build #$BUILD_NUMBER" > release_notes.txt
+          echo "Branch: $CM_BRANCH" >> release_notes.txt
+          echo "Commit: $(echo $CM_COMMIT | cut -c1-8)" >> release_notes.txt
+          echo "" >> release_notes.txt
+
+          if [ -f "CHANGELOG.md" ]; then
+            echo "Latest Changes:" >> release_notes.txt
+            echo "" >> release_notes.txt
+            sed '/^---$/q' CHANGELOG.md | sed '$d' | tail -n +3 >> release_notes.txt
+          else
+            echo "No CHANGELOG.md found." >> release_notes.txt
+          fi
+
+          echo "" >> release_notes.txt
+          echo "Built on: $(date)" >> release_notes.txt
+          echo "--- release_notes.txt ---"
+          cat release_notes.txt
+
       - name: Build Android APK
         script: |
-          flutter build apk --release
-      
-      - name: Build Android App Bundle
-        script: |
-          flutter build appbundle --release
-    
+          flutter build apk --release --build-number=$BUILD_NUMBER
+
     artifacts:
       - build/app/outputs/**/*.apk
-      - build/app/outputs/**/*.aab
       - build/app/outputs/**/mapping.txt
       - flutter_drive.log
-    
+
     publishing:
       firebase:
         firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
@@ -222,26 +257,41 @@ workflows:
           flutter test
         ignore_failure: false
 
+      - name: Create release notes
+        script: |
+          echo "Build #$BUILD_NUMBER" > release_notes.txt
+          echo "Branch: $CM_BRANCH" >> release_notes.txt
+          echo "Commit: $(echo $CM_COMMIT | cut -c1-8)" >> release_notes.txt
+          echo "" >> release_notes.txt
+
+          if [ -f "CHANGELOG.md" ]; then
+            echo "Latest Changes:" >> release_notes.txt
+            echo "" >> release_notes.txt
+            sed '/^---$/q' CHANGELOG.md | sed '$d' | tail -n +3 >> release_notes.txt
+          else
+            echo "No CHANGELOG.md found." >> release_notes.txt
+          fi
+
+          echo "" >> release_notes.txt
+          echo "Built on: $(date)" >> release_notes.txt
+          echo "--- release_notes.txt ---"
+          cat release_notes.txt
+
       - name: Set up code signing
         script: |
           xcode-project use-profiles
 
       - name: Build iOS
         script: |
-          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
 
       - name: Build Android APK
         script: |
-          flutter build apk --release
-      
-      - name: Build Android App Bundle
-        script: |
-          flutter build appbundle --release
-    
+          flutter build apk --release --build-number=$BUILD_NUMBER
+
     artifacts:
       - build/ios/ipa/*.ipa
       - build/app/outputs/**/*.apk
-      - build/app/outputs/**/*.aab
       - build/app/outputs/**/mapping.txt
       - flutter_drive.log
     
