@@ -88,6 +88,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         ref.watch(bookmarksProvider).map((a) => a.id).toSet();
     final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
     final articleState = ref.watch(articleStateProvider);
+    final feedFilter = ref.watch(feedFilterProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -144,6 +145,25 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
           ),
 
+          // Active feed filter chip
+          if (feedFilter != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Row(
+                children: [
+                  FilterChip(
+                    label: Text(feedFilter),
+                    selected: true,
+                    onSelected: (_) =>
+                        ref.read(feedFilterProvider.notifier).state = null,
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    onDeleted: () =>
+                        ref.read(feedFilterProvider.notifier).state = null,
+                  ),
+                ],
+              ),
+            ),
+
           // Content
           Expanded(
             child: _isSearching
@@ -153,10 +173,15 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         _searchResults!, bookmarkedIds, bookmarksNotifier, articleState, theme)
                     : articlesAsync.when(
                         data: (articles) {
-                          final visible = articles
+                          var visible = articles
                               .where((a) =>
                                   !articleState.deletedIds.contains(a.id))
                               .toList();
+                          if (feedFilter != null) {
+                            visible = visible
+                                .where((a) => a.sourceName == feedFilter)
+                                .toList();
+                          }
                           return RefreshIndicator(
                             onRefresh: () =>
                                 ref.read(articlesProvider.notifier).refresh(),

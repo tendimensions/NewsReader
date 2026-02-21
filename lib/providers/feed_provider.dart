@@ -22,8 +22,8 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
       : _repo = repo,
         super(repo.getAll());
 
-  Future<void> addFeed(String url, String name) async {
-    final feed = FeedConfig(url: url, name: name);
+  Future<void> addFeed(String url, String name, {int articleLimit = 5}) async {
+    final feed = FeedConfig(url: url, name: name, articleLimit: articleLimit);
     await _repo.addFeed(feed);
     state = _repo.getAll();
   }
@@ -33,8 +33,9 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
     state = _repo.getAll();
   }
 
-  Future<void> updateFeed(String oldUrl, String newUrl, String newName) async {
-    await _repo.updateFeed(oldUrl, newUrl, newName);
+  Future<void> updateFeed(
+      String oldUrl, String newUrl, String newName, int articleLimit) async {
+    await _repo.updateFeed(oldUrl, newUrl, newName, articleLimit);
     state = _repo.getAll();
   }
 
@@ -70,6 +71,8 @@ final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
   final rssSource = RssNewsSource(
     displayName: 'RSS Feeds',
     feedUrls: enabledConfigs.map((c) => c.url).toList(),
+    feedNames: {for (final c in enabledConfigs) c.url: c.name},
+    feedLimits: enabledConfigs.map((c) => c.articleLimit).toList(),
   );
 
   return NewsAggregatorService(
@@ -77,6 +80,9 @@ final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
     deduplicationStrategy: DeduplicationStrategy.combined,
   );
 });
+
+/// Active feed filter — when set, FeedScreen shows only articles from this feed name
+final feedFilterProvider = StateProvider<String?>((ref) => null);
 
 /// Fetches articles from the aggregator, filters deleted, caches for offline
 final articlesProvider =
