@@ -3,7 +3,7 @@ workflows:
   ios-workflow:
     name: iOS Build & Deploy
     instance_type: mac_mini_m1
-    max_build_duration: 60
+    max_build_duration: 10
 
     environment:
       groups:
@@ -109,7 +109,7 @@ workflows:
   android-workflow:
     name: Android Build & Deploy
     instance_type: linux_x2
-    max_build_duration: 60
+    max_build_duration: 10
     
     environment:
       # android_signing:
@@ -212,7 +212,7 @@ workflows:
   dev-workflow:
     name: Dev Build (iOS & Android)
     instance_type: mac_mini_m1
-    max_build_duration: 60
+    max_build_duration: 10
     
     environment:
       groups:
