@@ -95,29 +95,52 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
     final aggregator = ref.watch(newsAggregatorProvider);
     final cacheRepo = ref.read(articleCacheRepositoryProvider);
 
-    try {
-      debugPrint('[ArticlesNotifier] build() called, fetching articles...');
-      final articles = await aggregator.fetchArticles(limit: 50);
-      debugPrint('[ArticlesNotifier] Fetched ${articles.length} articles from aggregator');
-      await cacheRepo.cacheArticles(articles);
-      return articles;
-    } catch (e, stack) {
-      debugPrint('[ArticlesNotifier] ERROR fetching articles: $e');
-      debugPrint('[ArticlesNotifier] Stack: $stack');
-      final cached = cacheRepo.getAll();
-      if (cached.isNotEmpty) {
-        debugPrint('[ArticlesNotifier] Falling back to ${cached.length} cached articles');
-        return cached;
+    // Guard against stale background fetches when the notifier is rebuilt
+    var cancelled = false;
+    ref.onDispose(() => cancelled = true);
+
+    final cached = cacheRepo.getAll();
+    debugPrint('[ArticlesNotifier] build() called, returning ${cached.length} cached articles immediately');
+
+    // Fetch in the background; update state when done without blocking startup
+    Future.microtask(() async {
+      try {
+        debugPrint('[ArticlesNotifier] Background fetch starting...');
+        final articles = await aggregator.fetchArticles(limit: 50);
+        if (cancelled) return;
+        debugPrint('[ArticlesNotifier] Background fetch complete: ${articles.length} articles');
+        await cacheRepo.cacheArticles(articles);
+        if (cancelled) return;
+        state = AsyncData(articles);
+      } catch (e, stack) {
+        if (cancelled) return;
+        debugPrint('[ArticlesNotifier] Background fetch ERROR: $e');
+        // Only surface the error if we have nothing to show
+        final current = state;
+        if (current is AsyncData<List<Article>> && current.value.isEmpty) {
+          state = AsyncError(e, stack);
+        }
       }
-      rethrow;
-    }
+    });
+
+    return cached;
   }
 
   Future<void> refresh() async {
     debugPrint('[ArticlesNotifier] refresh() called');
+    final aggregator = ref.read(newsAggregatorProvider);
+    final cacheRepo = ref.read(articleCacheRepositoryProvider);
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => build());
-    debugPrint('[ArticlesNotifier] refresh() done, state: ${state.hasValue ? "${state.value!.length} articles" : state.hasError ? "error: ${state.error}" : "loading"}');
+    try {
+      final articles = await aggregator.fetchArticles(limit: 50);
+      await cacheRepo.cacheArticles(articles);
+      state = AsyncData(articles);
+      debugPrint('[ArticlesNotifier] refresh() done: ${articles.length} articles');
+    } catch (e, stack) {
+      debugPrint('[ArticlesNotifier] refresh() ERROR: $e');
+      final cached = cacheRepo.getAll();
+      state = cached.isNotEmpty ? AsyncData(cached) : AsyncError(e, stack);
+    }
   }
 
   Future<List<Article>> search(String query) async {
