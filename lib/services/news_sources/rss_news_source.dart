@@ -39,24 +39,29 @@ class RssNewsSource implements INewsSource {
     try {
       final allArticles = <Article>[];
 
-      debugPrint('[RssNewsSource] Fetching from ${feedUrls.length} feeds...');
-      // Fetch from all configured RSS feeds
-      for (var i = 0; i < feedUrls.length; i++) {
-        final feedUrl = feedUrls[i];
-        final perFeedLimit =
-            (feedLimits != null && i < feedLimits!.length) ? feedLimits![i] : limit;
-        final sourceName = feedNames?[feedUrl];
-        try {
-          debugPrint('[RssNewsSource] Fetching: $feedUrl');
-          final articles =
-              await _fetchFromFeed(feedUrl, sourceName: sourceName);
-          debugPrint('[RssNewsSource] Got ${articles.length} articles from $feedUrl');
-          allArticles.addAll(articles.take(perFeedLimit));
-        } catch (e) {
-          // Continue with other feeds if one fails
-          debugPrint('[RssNewsSource] FAILED $feedUrl: $e');
-          log('Failed to fetch from $feedUrl: $e');
-        }
+      debugPrint('[RssNewsSource] Fetching from ${feedUrls.length} feeds in parallel...');
+      // Fetch all feeds in parallel; errors are caught per-feed
+      final results = await Future.wait(
+        List.generate(feedUrls.length, (i) async {
+          final feedUrl = feedUrls[i];
+          final perFeedLimit =
+              (feedLimits != null && i < feedLimits!.length) ? feedLimits![i] : limit;
+          final sourceName = feedNames?[feedUrl];
+          try {
+            debugPrint('[RssNewsSource] Fetching: $feedUrl');
+            final articles =
+                await _fetchFromFeed(feedUrl, sourceName: sourceName);
+            debugPrint('[RssNewsSource] Got ${articles.length} articles from $feedUrl');
+            return articles.take(perFeedLimit).toList();
+          } catch (e) {
+            debugPrint('[RssNewsSource] FAILED $feedUrl: $e');
+            log('Failed to fetch from $feedUrl: $e');
+            return <Article>[];
+          }
+        }),
+      );
+      for (final batch in results) {
+        allArticles.addAll(batch);
       }
       debugPrint('[RssNewsSource] Total articles before pagination: ${allArticles.length}');
 
@@ -119,7 +124,9 @@ class RssNewsSource implements INewsSource {
   /// Fetch and parse articles from a single RSS feed
   Future<List<Article>> _fetchFromFeed(String feedUrl,
       {String? sourceName}) async {
-    final response = await http.get(Uri.parse(feedUrl));
+    final response = await http
+        .get(Uri.parse(feedUrl))
+        .timeout(const Duration(seconds: 15));
     debugPrint('[RssNewsSource] HTTP ${response.statusCode} from $feedUrl (${response.body.length} bytes)');
 
     if (response.statusCode != 200) {
