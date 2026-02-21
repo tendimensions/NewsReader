@@ -84,6 +84,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     final articlesAsync = ref.watch(articlesProvider);
+    final bookmarkedIds =
+        ref.watch(bookmarksProvider).map((a) => a.id).toSet();
     final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
     final articleState = ref.watch(articleStateProvider);
     final theme = Theme.of(context);
@@ -148,7 +150,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _searchResults != null
                     ? _buildArticleList(
-                        _searchResults!, bookmarksNotifier, articleState, theme)
+                        _searchResults!, bookmarkedIds, bookmarksNotifier, articleState, theme)
                     : articlesAsync.when(
                         data: (articles) {
                           final visible = articles
@@ -159,7 +161,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                             onRefresh: () =>
                                 ref.read(articlesProvider.notifier).refresh(),
                             child: _buildArticleList(
-                                visible, bookmarksNotifier, articleState, theme,
+                                visible, bookmarkedIds, bookmarksNotifier,
+                                articleState, theme,
                                 scrollController: _scrollController),
                           );
                         },
@@ -206,6 +209,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   Widget _buildArticleList(
     List<Article> articles,
+    Set<String> bookmarkedIds,
     BookmarksNotifier bookmarksNotifier,
     ArticleStateData articleState,
     ThemeData theme, {
@@ -257,7 +261,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           onDismissed: (_) => _deleteArticle(article),
           child: ArticleCard(
             article: article,
-            isBookmarked: bookmarksNotifier.isBookmarked(article.id),
+            isBookmarked: bookmarkedIds.contains(article.id),
             isRead: isRead,
             onTap: () => _openArticle(article),
             onBookmarkTap: () => bookmarksNotifier.toggle(article),
