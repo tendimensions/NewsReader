@@ -1,8 +1,19 @@
 # Changelog
 
-## Fixed
+## 0.0.6
 
-- Scroll position now restored when returning from article view to the feed list
+- Fixed: iOS launch hang: app no longer silently freezes on a blank screen if initialization fails
+- Hive database corruption now auto-recovers on next launch instead of leaving the app stuck
+- Hive adapters guarded against double-registration on unexpected re-init
+- Added NSAppTransportSecurity to iOS Info.plist to allow HTTP feed URLs
+- Added global error handlers (FlutterError, PlatformDispatcher, runZonedGuarded) so any unhandled exception is logged and shown instead of silently dropped
+- Initialization timeout (30 s) prevents infinite hang if Hive boxes stall
+
+---
+
+## 0.0.5
+
+- Fixed: Scroll position now restored when returning from article view to the feed list
 
 ---
 
