@@ -3,7 +3,7 @@
 ## 0.0.6
 
 - Fixed: iOS launch hang: app no longer silently freezes on a blank screen if initialization fails
-- Hive database corruption now auto-recovers on next launch instead of leaving the app stuck
+- Hive database corruption now auto-recovers on next launch: only the corrupted box is wiped, preserving custom feeds, bookmarks, and settings in unaffected boxes
 - Hive adapters guarded against double-registration on unexpected re-init
 - Added NSAppTransportSecurity to iOS Info.plist to allow HTTP feed URLs
 - Added global error handlers (FlutterError, PlatformDispatcher, runZonedGuarded) so any unhandled exception is logged and shown instead of silently dropped

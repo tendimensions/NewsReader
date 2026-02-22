@@ -63,20 +63,14 @@ Future<void> _initializeAndRun() async {
   final settingsRepo = SettingsRepository();
   final articleStateRepo = ArticleStateRepository();
 
-  // Open all Hive boxes. If any box is corrupted or incompatible (e.g. after
-  // an update that changed the schema), wipe all boxes and retry once so the
-  // app can still launch instead of hanging on a blank screen.
-  try {
-    await _openRepositories(
-        feedConfigRepo, bookmarksRepo, articleCacheRepo, settingsRepo, articleStateRepo);
-  } catch (e) {
-    debugPrint('[main] Hive open failed ($e) — clearing all boxes and retrying...');
-    await _clearAllBoxes();
-    // If this second attempt also fails, the exception propagates to main()
-    // and the user sees the error screen instead of a blank screen.
-    await _openRepositories(
-        feedConfigRepo, bookmarksRepo, articleCacheRepo, settingsRepo, articleStateRepo);
-  }
+  // Open each Hive box individually. If a specific box is corrupted (e.g.
+  // after a schema change), only that box is wiped and recreated — user data
+  // in other boxes (custom feeds, bookmarks, settings) is preserved.
+  await _tryInit(feedConfigRepo.init, ['feed_configs']);
+  await _tryInit(bookmarksRepo.init, ['bookmarks']);
+  await _tryInit(articleCacheRepo.init, ['article_cache']);
+  await _tryInit(settingsRepo.init, ['settings']);
+  await _tryInit(articleStateRepo.init, ['read_articles', 'deleted_articles']);
 
   runApp(
     ProviderScope(
@@ -92,37 +86,25 @@ Future<void> _initializeAndRun() async {
   );
 }
 
-Future<void> _openRepositories(
-  FeedConfigRepository feedConfigRepo,
-  BookmarksRepository bookmarksRepo,
-  ArticleCacheRepository articleCacheRepo,
-  SettingsRepository settingsRepo,
-  ArticleStateRepository articleStateRepo,
-) {
-  return Future.wait([
-    feedConfigRepo.init(),
-    bookmarksRepo.init(),
-    articleCacheRepo.init(),
-    settingsRepo.init(),
-    articleStateRepo.init(),
-  ]).timeout(const Duration(seconds: 30));
-}
-
-Future<void> _clearAllBoxes() async {
-  const boxNames = [
-    'feed_configs',
-    'bookmarks',
-    'article_cache',
-    'settings',
-    'read_articles',
-    'deleted_articles',
-  ];
-  for (final name in boxNames) {
-    try {
-      await Hive.deleteBoxFromDisk(name);
-    } catch (e) {
-      debugPrint('[main] Could not delete box "$name": $e');
+/// Opens one repository. On failure, deletes only its box(es) and retries once.
+/// Other repositories are untouched, so unaffected user data is preserved.
+Future<void> _tryInit(
+  Future<void> Function() init,
+  List<String> boxNames,
+) async {
+  try {
+    await init().timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('[main] Box(es) $boxNames failed ($e) — clearing and retrying...');
+    for (final name in boxNames) {
+      try {
+        await Hive.deleteBoxFromDisk(name);
+      } catch (deleteErr) {
+        debugPrint('[main] Could not delete box "$name": $deleteErr');
+      }
     }
+    // If this also fails the exception propagates to main() → error screen.
+    await init().timeout(const Duration(seconds: 10));
   }
 }
 
