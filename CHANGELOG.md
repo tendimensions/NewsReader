@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.7
+
+- Added 10 new built-in feeds: MIT Technology Review, IEEE Spectrum, Engadget, 9to5Mac, Android Authority, Tom's Hardware, Slashdot, The Register, Lobsters, CNET
+- New built-in feeds are added automatically for existing users on next launch (no reinstall required)
+
+---
+
 ## 0.0.6
 
 - Fixed: iOS launch hang: app no longer silently freezes on a blank screen if initialization fails

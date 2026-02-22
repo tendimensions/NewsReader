@@ -54,6 +54,56 @@ class FeedConfig extends HiveObject {
           name: 'Wired',
           isBuiltIn: true,
         ),
+        FeedConfig(
+          url: 'https://www.technologyreview.com/feed/',
+          name: 'MIT Technology Review',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://spectrum.ieee.org/feeds/feed.rss',
+          name: 'IEEE Spectrum',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.engadget.com/rss.xml',
+          name: 'Engadget',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://9to5mac.com/feed/',
+          name: '9to5Mac',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.androidauthority.com/feed/',
+          name: 'Android Authority',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.tomshardware.com/feeds/all',
+          name: "Tom's Hardware",
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://rss.slashdot.org/Slashdot/slashdotMain',
+          name: 'Slashdot',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.theregister.com/headlines.atom',
+          name: 'The Register',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://lobste.rs/rss',
+          name: 'Lobsters',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.cnet.com/rss/news/',
+          name: 'CNET',
+          isBuiltIn: true,
+        ),
       ];
 
   @override
