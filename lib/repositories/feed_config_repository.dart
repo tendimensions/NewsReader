@@ -32,7 +32,8 @@ class FeedConfigRepository {
     await _box.delete(url);
   }
 
-  Future<void> updateFeed(String oldUrl, String newUrl, String newName) async {
+  Future<void> updateFeed(
+      String oldUrl, String newUrl, String newName, int articleLimit) async {
     final feed = _box.get(oldUrl);
     if (feed == null) return;
     final enabled = feed.enabled;
@@ -48,6 +49,7 @@ class FeedConfigRepository {
         name: newName,
         enabled: enabled,
         isBuiltIn: isBuiltIn,
+        articleLimit: articleLimit,
       ),
     );
   }

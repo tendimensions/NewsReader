@@ -17,11 +17,15 @@ class FeedConfig extends HiveObject {
   @HiveField(3)
   final bool isBuiltIn;
 
+  @HiveField(4)
+  int articleLimit;
+
   FeedConfig({
     required this.url,
     required this.name,
     this.enabled = true,
     this.isBuiltIn = false,
+    this.articleLimit = 5,
   });
 
   static List<FeedConfig> get defaultFeeds => [
