@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -133,9 +134,13 @@ class RssNewsSource implements INewsSource {
       throw Exception('Failed to fetch RSS feed: ${response.statusCode}');
     }
 
+    // Decode as UTF-8 explicitly so curly quotes and other multi-byte
+    // characters aren't mangled by the default Latin-1 fallback.
+    final body = utf8.decode(response.bodyBytes, allowMalformed: true);
+
     // Try parsing as RSS first
     try {
-      final rssFeed = RssFeed.parse(response.body);
+      final rssFeed = RssFeed.parse(body);
       final articles = _parseRssFeed(rssFeed, feedUrl, sourceName: sourceName);
       debugPrint('[RssNewsSource] Parsed ${articles.length} RSS items from $feedUrl');
       return articles;
@@ -143,7 +148,7 @@ class RssNewsSource implements INewsSource {
       debugPrint('[RssNewsSource] RSS parse failed for $feedUrl: $e, trying Atom...');
       // If RSS parsing fails, try Atom
       try {
-        final atomFeed = AtomFeed.parse(response.body);
+        final atomFeed = AtomFeed.parse(body);
         final articles =
             _parseAtomFeed(atomFeed, feedUrl, sourceName: sourceName);
         debugPrint('[RssNewsSource] Parsed ${articles.length} Atom items from $feedUrl');
