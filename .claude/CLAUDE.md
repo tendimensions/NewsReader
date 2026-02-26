@@ -14,13 +14,13 @@ See [AGENTS.md](../AGENTS.md) for issue tracking workflows using **beads** (`bd`
 
 ## Skills
 
-Task-specific guidance lives in [`.claude/skills/`](skills/):
+Task-specific guidance for common workflows:
 
 | Skill | File | When to use |
 |-------|------|-------------|
-| Git workflow | [skills/GIT.md](skills/GIT.md) | Branching, committing, pushing, session wrap-up |
-| Flutter development | [skills/FLUTTER.md](skills/FLUTTER.md) | Commands, builds, analysis, CI/CD |
-| Hive storage | [skills/HIVE.md](skills/HIVE.md) | Model changes, adapter regeneration |
+| Git workflow | [git/SKILL.md](git/SKILL.md) | Branching, committing, pushing, session wrap-up |
+| Flutter development | [flutter/SKILL.md](flutter/SKILL.md) | Commands, builds, analysis, CI/CD |
+| Hive storage | [hive/SKILL.md](hive/SKILL.md) | Model changes, adapter regeneration |
 
 ## Requirements
 
@@ -128,7 +128,7 @@ Current intentional dependencies in `ArticlesNotifier.build()`:
 
 ## Important Notes
 
-- API keys (NEWS_API_KEY) must be configured as secure environment variables in CodeMagic, never committed
 - Firebase config files (`google-services.json`, `GoogleService-Info.plist`) are gitignored
 - Tests are minimal (only default `widget_test.dart`) — expand as features are built
-- After modifying any Hive model, regenerate adapters — see [skills/HIVE.md](skills/HIVE.md)
+- After modifying any Hive model, regenerate adapters — see [hive/SKILL.md](hive/SKILL.md)
+- **No API keys needed** for initial release — app uses RSS feeds only

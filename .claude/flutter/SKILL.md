@@ -69,6 +69,7 @@ This project uses **Riverpod**. Key rules:
 
 ## Environment & Secrets
 
-- `NEWS_API_KEY` must be a secure env var in CodeMagic — never hardcode or commit it
 - Firebase config files (`google-services.json`, `GoogleService-Info.plist`) are gitignored
-- See [GIT.md](GIT.md) for commit hygiene rules around secrets
+- See [SKILL.md](../git/SKILL.md) for commit hygiene rules around secrets
+
+> **Note**: `NEWS_API_KEY` is not needed for the initial release. The app uses RSS feeds only. NewsAPI.org integration exists in the codebase but is not active.

@@ -83,8 +83,9 @@ The following commands require explicit user confirmation:
 ## Secrets & Sensitive Files
 
 - Never commit `.env`, `google-services.json`, `GoogleService-Info.plist`, or any file containing API keys
-- `NEWS_API_KEY` must stay in CodeMagic secure env vars only
 - Firebase config files are already gitignored — do not force-add them
+
+> **Note**: The app currently uses RSS feeds only and does not require external API keys.
 
 ## Beads Integration
 
