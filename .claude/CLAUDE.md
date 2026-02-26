@@ -40,7 +40,7 @@ Task-specific guidance for common workflows:
 
 ### Data & Sources
 - **Initial launch**: RSS feeds only (no NewsAPI key required)
-- **Built-in feeds** (tech-focused): Ars Technica, The Verge, TechCrunch, Hacker News, etc.
+- **Built-in feeds** (tech-focused): Ars Technica, The Verge, TechCrunch, Hacker News, Wired, MIT Technology Review, IEEE Spectrum, Engadget, 9to5Mac, Android Authority, Tom's Hardware, Slashdot, The Register, Lobsters, CNET
 - **Feed customization**: Users can add/remove custom RSS feed URLs and toggle built-in feeds on/off via settings
 - **Deduplication**: Combined strategy (URL + title similarity) via existing `NewsAggregatorService`
 
