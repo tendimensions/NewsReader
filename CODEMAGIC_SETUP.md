@@ -4,7 +4,8 @@
 
 1. **CodeMagic Account**: Sign up at https://codemagic.io
 2. **Firebase Project**: Create a project at https://console.firebase.google.com
-3. **NewsAPI.org Key**: Get your API key from https://newsapi.org
+
+> **Note**: NewsAPI.org key is not required for the initial release. The app uses RSS feeds only.
 
 ## Environment Variables to Configure in CodeMagic
 
@@ -12,8 +13,9 @@ Go to your app settings in CodeMagic and add these environment variables (marked
 
 ### Required for All Builds
 
-- `NEWS_API_KEY` - Your NewsAPI.org API key
 - `FIREBASE_SERVICE_ACCOUNT` - Firebase service account JSON (for App Distribution)
+
+> **Not needed yet**: `NEWS_API_KEY` (for future NewsAPI.org integration) — current release uses RSS feeds only
 
 ### iOS Specific
 
