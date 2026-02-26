@@ -1,90 +1,100 @@
 # NewsReader
 
-A custom news reader application built with Flutter for iOS and Android platforms.
+A cross-platform news reader built with Flutter. Aggregates articles from multiple RSS/Atom feeds with deduplication, offline caching, bookmarking, and a clean Material 3 UI.
 
-## Project Overview
+**Package**: `com.tendimensions.newsreader`
+**Platforms**: Android, iOS, Linux, Windows
 
-NewsReader is a cross-platform mobile application designed to provide users with a personalized news reading experience. The app will be developed using Flutter, built on CodeMagic CI/CD, and distributed via Firebase App Distribution.
+## Features
 
-## Status
+- Reverse-chronological feed with search
+- Built-in tech feeds (Ars Technica, The Verge, TechCrunch, Hacker News, and more)
+- Add/remove custom RSS feed URLs; toggle built-in feeds on/off
+- Article reader mode with HTML rendering, selectable text, open-in-browser, and bookmarking
+- Offline cache (up to 200 articles)
+- Material 3 design with system-aware dark mode and manual override
+- Deduplication via URL + title-similarity matching
 
-🚧 **In Development** - Initial setup phase
+## Tech Stack
 
-## Technology Stack
-
-- **Framework**: Flutter
-- **Platforms**: iOS, Android
-- **CI/CD**: CodeMagic
-- **Distribution**: Firebase App Distribution
-
-## Configuration Pending
-
-The following aspects are still being defined:
-
-- **News Sources/APIs**: To be determined
-- **Features**: Full feature specification document to be created
-- **Architecture Pattern**: To be decided (see common Flutter patterns below)
-- **State Management**: To be selected
-
-## Common Flutter Architecture Patterns
-
-For reference, the most commonly used architecture patterns in Flutter applications are:
-
-1. **Provider + MVVM** - Most popular for small to medium apps
-2. **BLoC (Business Logic Component)** - Popular for larger, enterprise applications
-3. **Riverpod** - Modern evolution of Provider, gaining popularity
-4. **GetX** - All-in-one solution (state management, routing, dependency injection)
-5. **Clean Architecture** - Often combined with the above patterns for larger apps
+| Concern | Library |
+|---------|---------|
+| UI framework | Flutter / Dart |
+| State management | Riverpod |
+| Local storage | Hive |
+| RSS parsing | webfeed |
+| HTML rendering | flutter_html |
+| HTTP | http |
+| URL launch | url_launcher |
+| CI/CD | CodeMagic |
+| Distribution | Firebase App Distribution |
 
 ## Getting Started
 
-### Prerequisites
-
-- Flutter SDK installed
-- iOS development: Xcode and CocoaPods
-- Android development: Android Studio and Android SDK
-
-### Installation
-
 ```bash
-# Get dependencies
+# Install dependencies
 flutter pub get
 
-# Run the app
-flutter run
-```
-
-## Project Structure
-
-```
-news_reader/
-├── android/          # Android-specific code
-├── ios/              # iOS-specific code
-├── lib/              # Main Flutter application code
-├── test/             # Unit and widget tests
-└── web/              # Web platform support
-```
-
-## Development
-
-This project uses the standard Flutter development workflow:
-
-```bash
 # Run in debug mode
 flutter run
 
 # Run tests
 flutter test
 
-# Build for release
-flutter build apk       # Android
-flutter build ios       # iOS
+# Static analysis
+flutter analyze
 ```
+
+## Building
+
+```bash
+flutter build apk        # Android
+flutter build ios        # iOS
+flutter build linux      # Linux
+flutter build windows    # Windows
+```
+
+## Project Structure
+
+```
+lib/
+├── main.dart            # Entry point (Hive init, ProviderScope, theme)
+├── models/              # Hive-annotated data models + generated adapters
+├── providers/           # Riverpod providers
+├── repositories/        # Hive-backed storage layer
+├── screens/             # Feed, Article reader, Settings
+├── services/            # NewsAggregatorService + RSS/NewsAPI sources
+└── widgets/             # Shared UI components (ArticleCard)
+```
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [.claude/CLAUDE.md](.claude/CLAUDE.md) | Full project guidance for Claude Code |
+| [.claude/skills/GIT.md](.claude/skills/GIT.md) | Git workflow, branching, session wrap-up |
+| [.claude/skills/FLUTTER.md](.claude/skills/FLUTTER.md) | Flutter commands, CI/CD, state patterns |
+| [.claude/skills/HIVE.md](.claude/skills/HIVE.md) | Hive models, adapters, migrations |
+| [AGENTS.md](AGENTS.md) | Issue tracking with beads (`bd`) |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md) | CI/CD setup guide |
+| [SUGGESTED_FEEDS.md](SUGGESTED_FEEDS.md) | Curated RSS feed list |
+
+## CI/CD
+
+Builds run on CodeMagic. Three workflows are configured in [`codemagic.yaml`](codemagic.yaml):
+
+- **`ios-workflow`** / **`android-workflow`** — triggered on push to `main`/`develop`
+- **`dev-workflow`** — triggered on push/PR to any branch
+
+Each workflow generates Hive adapters, runs analysis and tests, then builds and distributes via Firebase App Distribution.
 
 ## Contributing
 
-More details to be added as the project structure is finalized.
+1. Branch from `main` using `git checkout -b your-branch`
+2. Follow the git workflow in [`.claude/skills/GIT.md`](.claude/skills/GIT.md)
+3. Run `flutter analyze` and `flutter test` before pushing
 
 ## License
 
-To be determined
+To be determined.
