@@ -22,7 +22,18 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   List<Article>? _searchResults;
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_dismissSnackBar);
+  }
+
+  void _dismissSnackBar() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  }
+
+  @override
   void dispose() {
+    _scrollController.removeListener(_dismissSnackBar);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -58,6 +69,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _openArticle(Article article) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ref.read(articleStateProvider.notifier).markRead(article.id);
     Navigator.of(context).push(
       MaterialPageRoute(
