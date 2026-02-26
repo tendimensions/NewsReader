@@ -21,6 +21,7 @@ Task-specific guidance for common workflows:
 | Git workflow | [git/SKILL.md](git/SKILL.md) | Branching, committing, pushing, session wrap-up |
 | Flutter development | [flutter/SKILL.md](flutter/SKILL.md) | Commands, builds, analysis, CI/CD |
 | Hive storage | [hive/SKILL.md](hive/SKILL.md) | Model changes, adapter regeneration |
+| Riverpod | [riverpod/SKILL.md](riverpod/SKILL.md) | Provider patterns, state management, anti-patterns |
 
 ## Requirements
 
