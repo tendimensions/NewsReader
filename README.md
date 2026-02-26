@@ -75,7 +75,7 @@ lib/
 | [.claude/skills/GIT.md](.claude/skills/GIT.md) | Git workflow, branching, session wrap-up |
 | [.claude/skills/FLUTTER.md](.claude/skills/FLUTTER.md) | Flutter commands, CI/CD, state patterns |
 | [.claude/skills/HIVE.md](.claude/skills/HIVE.md) | Hive models, adapters, migrations |
-| [AGENTS.md](AGENTS.md) | Issue tracking with beads (`bd`) |
+| [AGENTS.md](AGENTS.md) | Agent workflow instructions |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
 | [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md) | CI/CD setup guide |
 | [SUGGESTED_FEEDS.md](SUGGESTED_FEEDS.md) | Curated RSS feed list |

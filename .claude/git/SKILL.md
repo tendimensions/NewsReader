@@ -56,11 +56,10 @@ Complete **all** steps before ending a session. Work is not done until `git push
    flutter analyze
    flutter test
    ```
-3. **Update issue status** via beads (`bd close <id>` / `bd update <id> --status in_progress`)
+3. **Update any relevant tracking** (close issues, update notes)
 4. **Push to remote** — MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
    git push -u origin <branch-name>
    git status   # must show "up to date with origin"
    ```
@@ -86,15 +85,3 @@ The following commands require explicit user confirmation:
 - Firebase config files are already gitignored — do not force-add them
 
 > **Note**: The app currently uses RSS feeds only and does not require external API keys.
-
-## Beads Integration
-
-```bash
-bd ready               # find available work items
-bd show <id>           # view issue details
-bd update <id> --status in_progress   # claim work
-bd close <id>          # mark complete
-bd sync                # sync beads state with git
-```
-
-See [AGENTS.md](../../AGENTS.md) for the full beads quick reference.

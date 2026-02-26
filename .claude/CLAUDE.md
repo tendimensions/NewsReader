@@ -10,7 +10,7 @@ Cross-platform news reader app built with Flutter (Dart SDK ^3.9.2). Aggregates 
 
 ## Agent Instructions
 
-See [AGENTS.md](../AGENTS.md) for issue tracking workflows using **beads** (`bd`).
+See [AGENTS.md](../AGENTS.md) for agent workflow instructions.
 
 ## Skills
 
