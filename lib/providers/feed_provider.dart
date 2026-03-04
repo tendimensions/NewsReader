@@ -111,6 +111,13 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
         debugPrint('[ArticlesNotifier] Background fetch complete: ${articles.length} articles');
         await cacheRepo.cacheArticles(articles);
         if (cancelled) return;
+        final bookmarksRepo = ref.read(bookmarksRepositoryProvider);
+        final liveIds = {
+          ...cacheRepo.getAll().map((a) => a.id),
+          ...bookmarksRepo.getAll().map((a) => a.id),
+        };
+        await ref.read(articleStateProvider.notifier).pruneOrphans(liveIds);
+        if (cancelled) return;
         state = AsyncData(articles);
       } catch (e, stack) {
         if (cancelled) return;
@@ -134,6 +141,12 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
     try {
       final articles = await aggregator.fetchArticles(limit: 50);
       await cacheRepo.cacheArticles(articles);
+      final bookmarksRepo = ref.read(bookmarksRepositoryProvider);
+      final liveIds = {
+        ...cacheRepo.getAll().map((a) => a.id),
+        ...bookmarksRepo.getAll().map((a) => a.id),
+      };
+      await ref.read(articleStateProvider.notifier).pruneOrphans(liveIds);
       state = AsyncData(articles);
       debugPrint('[ArticlesNotifier] refresh() done: ${articles.length} articles');
     } catch (e, stack) {

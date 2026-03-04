@@ -71,4 +71,12 @@ class ArticleStateNotifier extends StateNotifier<ArticleStateData> {
     await _repo.clearRead();
     state = state.copyWith(readIds: {});
   }
+
+  Future<void> pruneOrphans(Set<String> liveIds) async {
+    await _repo.pruneOrphans(liveIds);
+    state = ArticleStateData(
+      readIds: _repo.readIds,
+      deletedIds: _repo.deletedIds,
+    );
+  }
 }
