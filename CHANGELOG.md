@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.8
+
+- Swipe right on an article to bookmark/unbookmark it; swipe left continues to remove it from the feed
+- Article state (read/deleted IDs) is now pruned automatically on each fetch, preventing unbounded local database growth
+
+---
+
 ## 0.0.7
 
 - Added 10 new built-in feeds: MIT Technology Review, IEEE Spectrum, Engadget, 9to5Mac, Android Authority, Tom's Hardware, Slashdot, The Register, Lobsters, CNET
