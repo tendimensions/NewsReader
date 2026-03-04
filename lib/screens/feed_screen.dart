@@ -93,6 +93,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
+  void _bookmarkArticle(Article article, bool wasBookmarked) {
+    ref.read(bookmarksProvider.notifier).toggle(article);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(wasBookmarked ? 'Bookmark removed' : 'Bookmarked'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => ref.read(bookmarksProvider.notifier).toggle(article),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final articlesAsync = ref.watch(articlesProvider);
@@ -285,20 +298,37 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       itemBuilder: (context, index) {
         final article = articles[index];
         final isRead = articleState.readIds.contains(article.id);
+        final isBookmarked = bookmarkedIds.contains(article.id);
         return Dismissible(
           key: ValueKey(article.id),
-          direction: DismissDirection.endToStart,
+          direction: DismissDirection.horizontal,
           background: Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.only(left: 24),
+            color: theme.colorScheme.primaryContainer,
+            child: Icon(
+              isBookmarked ? Icons.bookmark_remove_outlined : Icons.bookmark_add_outlined,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
+          ),
+          secondaryBackground: Container(
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 24),
             color: theme.colorScheme.errorContainer,
             child: Icon(Icons.delete_outline,
                 color: theme.colorScheme.onErrorContainer),
           ),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              _bookmarkArticle(article, isBookmarked);
+              return false;
+            }
+            return true;
+          },
           onDismissed: (_) => _deleteArticle(article),
           child: ArticleCard(
             article: article,
-            isBookmarked: bookmarkedIds.contains(article.id),
+            isBookmarked: isBookmarked,
             isRead: isRead,
             onTap: () => _openArticle(article),
             onBookmarkTap: () => bookmarksNotifier.toggle(article),
