@@ -129,6 +129,8 @@ Current intentional dependencies in `ArticlesNotifier.build()`:
 
 ## Important Notes
 
+- **Before starting any work**: run `git pull` to ensure you are on the latest version of the current branch
+- **New work goes on a new branch**: never commit new feature or fix work directly to `main`; create a descriptive branch (e.g. `claude/feature-name`) before making changes
 - Firebase config files (`google-services.json`, `GoogleService-Info.plist`) are gitignored
 - Tests are minimal (only default `widget_test.dart`) — expand as features are built
 - After modifying any Hive model, regenerate adapters — see [hive/SKILL.md](hive/SKILL.md)
