@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/article.dart';
 import '../providers/bookmarks_provider.dart';
+import '../utils/html_utils.dart';
 
 /// Reader mode article view — clean, distraction-free layout
 class ArticleScreen extends ConsumerWidget {
@@ -91,7 +92,7 @@ class ArticleScreen extends ConsumerWidget {
 
             // Title
             Text(
-              article.title,
+              decodeHtmlEntities(article.title),
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),

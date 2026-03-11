@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:webfeed/webfeed.dart';
 import '../../models/article.dart';
+import '../../utils/html_utils.dart';
 import 'i_news_source.dart';
 
 /// RSS Feed implementation
@@ -179,10 +180,11 @@ class RssNewsSource implements INewsSource {
         final id = Uri.parse(url).host + url.hashCode.toString();
         final publishedAt = item.pubDate ?? DateTime.now();
 
+        final rawDescription = item.description;
         articles.add(Article(
           id: id,
-          title: title,
-          description: item.description,
+          title: decodeHtmlEntities(title),
+          description: rawDescription != null ? stripHtml(rawDescription) : null,
           content: item.content?.value ?? item.description,
           url: url,
           imageUrl: _extractImageUrl(item),
@@ -220,10 +222,11 @@ class RssNewsSource implements INewsSource {
         final id = Uri.parse(url).host + url.hashCode.toString();
         final publishedAt = entry.published ?? entry.updated ?? DateTime.now();
 
+        final rawSummary = entry.summary;
         articles.add(Article(
           id: id,
-          title: title,
-          description: entry.summary,
+          title: decodeHtmlEntities(title),
+          description: rawSummary != null ? stripHtml(rawSummary) : null,
           content: entry.content ?? entry.summary,
           url: url,
           imageUrl: _extractAtomImageUrl(entry),

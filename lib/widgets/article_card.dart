@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/article.dart';
+import '../utils/html_utils.dart';
 
 class ArticleCard extends StatelessWidget {
   final Article article;
@@ -74,7 +75,7 @@ class ArticleCard extends StatelessWidget {
 
               // Title — bold for unread, normal for read
               Text(
-                article.title,
+                decodeHtmlEntities(article.title),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: isRead ? FontWeight.w400 : FontWeight.w700,
                   color: isRead
