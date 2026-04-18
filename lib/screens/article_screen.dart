@@ -9,13 +9,22 @@ import '../providers/bookmarks_provider.dart';
 import '../utils/html_utils.dart';
 
 /// Reader mode article view — clean, distraction-free layout
-class ArticleScreen extends ConsumerWidget {
+class ArticleScreen extends ConsumerStatefulWidget {
   final Article article;
 
   const ArticleScreen({super.key, required this.article});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ArticleScreen> createState() => _ArticleScreenState();
+}
+
+class _ArticleScreenState extends ConsumerState<ArticleScreen> {
+  Article get article => widget.article;
+
+  final _shareButtonKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
     final isBookmarked = ref.watch(bookmarksProvider
@@ -25,6 +34,7 @@ class ArticleScreen extends ConsumerWidget {
       appBar: AppBar(
         actions: [
           IconButton(
+            key: _shareButtonKey,
             icon: const Icon(Icons.share),
             tooltip: 'Share article',
             onPressed: () => _shareArticle(context),
@@ -241,21 +251,12 @@ class ArticleScreen extends ConsumerWidget {
   }
 
   Future<void> _shareArticle(BuildContext context) async {
+    final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromLTWH(0, 0, 100, 50);
     final text = '${article.title}\n${article.url}';
-    try {
-      final result = await Share.share(text);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share result: ${result.status}')),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share error: $e')),
-        );
-      }
-    }
+    await Share.share(text, sharePositionOrigin: origin);
   }
 
   Future<void> _openInBrowser(BuildContext context) async {
