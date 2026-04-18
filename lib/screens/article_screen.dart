@@ -242,7 +242,7 @@ class ArticleScreen extends ConsumerWidget {
 
   void _shareArticle() {
     final text = '${article.title}\n${article.url}';
-    SharePlus.instance.share(ShareParams(text: text));
+    Share.share(text);
   }
 
   Future<void> _openInBrowser(BuildContext context) async {
