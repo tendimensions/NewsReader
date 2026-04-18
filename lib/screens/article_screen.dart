@@ -27,7 +27,7 @@ class ArticleScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.share),
             tooltip: 'Share article',
-            onPressed: _shareArticle,
+            onPressed: () => _shareArticle(context),
           ),
           IconButton(
             icon: const Icon(Icons.open_in_browser),
@@ -240,9 +240,22 @@ class ArticleScreen extends ConsumerWidget {
     );
   }
 
-  void _shareArticle() {
+  Future<void> _shareArticle(BuildContext context) async {
     final text = '${article.title}\n${article.url}';
-    Share.share(text);
+    try {
+      final result = await Share.share(text);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Share result: ${result.status}')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Share error: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _openInBrowser(BuildContext context) async {
