@@ -61,28 +61,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: theme.textTheme.titleSmall?.copyWith(
                     color: theme.colorScheme.primary)),
           ),
-          Column(
-            children: [
-              RadioListTile<ThemePreference>(
-                title: const Text('System default'),
-                subtitle: const Text('Match device setting'),
-                value: ThemePreference.system,
-                groupValue: currentThemePref,
-                onChanged: (v) { if (v != null) themeNotifier.setTheme(v); },
-              ),
-              RadioListTile<ThemePreference>(
-                title: const Text('Light'),
-                value: ThemePreference.light,
-                groupValue: currentThemePref,
-                onChanged: (v) { if (v != null) themeNotifier.setTheme(v); },
-              ),
-              RadioListTile<ThemePreference>(
-                title: const Text('Dark'),
-                value: ThemePreference.dark,
-                groupValue: currentThemePref,
-                onChanged: (v) { if (v != null) themeNotifier.setTheme(v); },
-              ),
-            ],
+          RadioGroup<ThemePreference>(
+            groupValue: currentThemePref,
+            onChanged: (v) { if (v != null) themeNotifier.setTheme(v); },
+            child: Column(
+              children: [
+                RadioListTile<ThemePreference>(
+                  title: const Text('System default'),
+                  subtitle: const Text('Match device setting'),
+                  value: ThemePreference.system,
+                ),
+                RadioListTile<ThemePreference>(
+                  title: const Text('Light'),
+                  value: ThemePreference.light,
+                ),
+                RadioListTile<ThemePreference>(
+                  title: const Text('Dark'),
+                  value: ThemePreference.dark,
+                ),
+              ],
+            ),
           ),
 
           const Divider(),
