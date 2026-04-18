@@ -1,4 +1,4 @@
-/// Utilities for cleaning HTML content from RSS feeds.
+// Utilities for cleaning HTML content from RSS feeds.
 
 /// Decodes common HTML entities to their plain-text equivalents.
 String decodeHtmlEntities(String text) {
