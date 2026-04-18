@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/article.dart';
 import '../providers/bookmarks_provider.dart';
@@ -23,6 +24,11 @@ class ArticleScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Share article',
+            onPressed: _shareArticle,
+          ),
           IconButton(
             icon: const Icon(Icons.open_in_browser),
             tooltip: 'Open in browser',
@@ -232,6 +238,11 @@ class ArticleScreen extends ConsumerWidget {
         }
       },
     );
+  }
+
+  void _shareArticle() {
+    final text = '${article.title}\n${article.url}';
+    SharePlus.instance.share(ShareParams(text: text));
   }
 
   Future<void> _openInBrowser(BuildContext context) async {
