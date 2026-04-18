@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.9
+
+- Fixed: Share button now works on iOS — passes the button's screen position as required by the iOS share sheet
+
+---
+
 ## 0.0.8
 
 - Swipe right on an article to bookmark/unbookmark it; swipe left continues to remove it from the feed
