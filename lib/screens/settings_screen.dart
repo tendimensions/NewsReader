@@ -103,24 +103,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
 
-          // Built-in feeds
-          ...feeds.where((f) => f.isBuiltIn).map(
-                (feed) => _buildFeedTile(feed, feedsNotifier, theme),
-              ),
-
-          // Custom feeds
-          if (feeds.any((f) => !f.isBuiltIn)) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text('Custom Feeds',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
-            ),
-            ...feeds.where((f) => !f.isBuiltIn).map(
-                  (feed) => _buildFeedTile(feed, feedsNotifier, theme,
-                      showDelete: true),
-                ),
-          ],
+          // All feeds in one unified list
+          ...feeds.map(
+            (feed) => _buildFeedTile(feed, feedsNotifier, theme),
+          ),
 
           const SizedBox(height: 32),
         ],
@@ -131,12 +117,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildFeedTile(
     FeedConfig feed,
     FeedConfigNotifier feedsNotifier,
-    ThemeData theme, {
-    bool showDelete = false,
-  }) {
+    ThemeData theme,
+  ) {
     final testResult = _feedTestResults[feed.url];
 
     return ListTile(
+      onTap: () {
+        ref.read(feedFilterProvider.notifier).state = feed.name;
+        Navigator.of(context).pop();
+      },
       title: Text(feed.name),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,11 +175,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             value: feed.enabled,
             onChanged: (v) => feedsNotifier.toggleFeed(feed.url, v),
           ),
-          if (showDelete)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => feedsNotifier.removeFeed(feed.url),
-            ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Remove feed',
+            onPressed: () => feedsNotifier.removeFeed(feed.url),
+          ),
         ],
       ),
     );
@@ -200,6 +189,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       BuildContext context, FeedConfigNotifier feedsNotifier) {
     final nameController = TextEditingController();
     final urlController = TextEditingController();
+    final limitController = TextEditingController(text: '5');
 
     showDialog(
       context: context,
@@ -224,6 +214,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               keyboardType: TextInputType.url,
             ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: limitController,
+              decoration: const InputDecoration(
+                labelText: 'Articles to fetch',
+                helperText: 'Enter a number from 1 to 50',
+              ),
+              keyboardType: TextInputType.number,
+            ),
           ],
         ),
         actions: [
@@ -235,8 +234,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () {
               final name = nameController.text.trim();
               final url = urlController.text.trim();
+              final limit =
+                  (int.tryParse(limitController.text.trim()) ?? 5).clamp(1, 50);
               if (name.isNotEmpty && url.isNotEmpty) {
-                feedsNotifier.addFeed(url, name);
+                feedsNotifier.addFeed(url, name, articleLimit: limit);
                 Navigator.of(context).pop();
               }
             },
@@ -246,10 +247,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
   void _showEditFeedDialog(
       BuildContext context, FeedConfig feed, FeedConfigNotifier feedsNotifier) {
     final nameController = TextEditingController(text: feed.name);
     final urlController = TextEditingController(text: feed.url);
+    final limitController =
+        TextEditingController(text: feed.articleLimit.toString());
 
     showDialog(
       context: context,
@@ -272,6 +276,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               keyboardType: TextInputType.url,
             ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: limitController,
+              decoration: const InputDecoration(
+                labelText: 'Articles to fetch',
+                helperText: 'Enter a number from 1 to 50',
+              ),
+              keyboardType: TextInputType.number,
+            ),
           ],
         ),
         actions: [
@@ -283,8 +296,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () {
               final name = nameController.text.trim();
               final url = urlController.text.trim();
+              final limit =
+                  (int.tryParse(limitController.text.trim()) ?? 5).clamp(1, 50);
               if (name.isNotEmpty && url.isNotEmpty) {
-                feedsNotifier.updateFeed(feed.url, url, name);
+                feedsNotifier.updateFeed(feed.url, url, name, limit);
                 Navigator.of(context).pop();
               }
             },

@@ -8,14 +8,14 @@ class FeedConfigRepository {
 
   Future<void> init() async {
     _box = await Hive.openBox<FeedConfig>(_boxName);
-    if (_box.isEmpty) {
-      await _seedDefaults();
-    }
-  }
-
-  Future<void> _seedDefaults() async {
+    // Insert any built-in feed whose URL is not already in the box.
+    // Runs on every init so newly added built-ins appear for existing users.
+    // Feeds the user deleted stay gone; brand-new built-ins (new URL key) are
+    // added because their key was never present before.
     for (final feed in FeedConfig.defaultFeeds) {
-      await _box.put(feed.url, feed);
+      if (!_box.containsKey(feed.url)) {
+        await _box.put(feed.url, feed);
+      }
     }
   }
 
@@ -32,7 +32,8 @@ class FeedConfigRepository {
     await _box.delete(url);
   }
 
-  Future<void> updateFeed(String oldUrl, String newUrl, String newName) async {
+  Future<void> updateFeed(
+      String oldUrl, String newUrl, String newName, int articleLimit) async {
     final feed = _box.get(oldUrl);
     if (feed == null) return;
     final enabled = feed.enabled;
@@ -48,6 +49,7 @@ class FeedConfigRepository {
         name: newName,
         enabled: enabled,
         isBuiltIn: isBuiltIn,
+        articleLimit: articleLimit,
       ),
     );
   }

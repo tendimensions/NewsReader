@@ -17,11 +17,15 @@ class FeedConfig extends HiveObject {
   @HiveField(3)
   final bool isBuiltIn;
 
+  @HiveField(4)
+  int articleLimit;
+
   FeedConfig({
     required this.url,
     required this.name,
     this.enabled = true,
     this.isBuiltIn = false,
+    this.articleLimit = 5,
   });
 
   static List<FeedConfig> get defaultFeeds => [
@@ -48,6 +52,56 @@ class FeedConfig extends HiveObject {
         FeedConfig(
           url: 'https://www.wired.com/feed/rss',
           name: 'Wired',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.technologyreview.com/feed/',
+          name: 'MIT Technology Review',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://spectrum.ieee.org/feeds/feed.rss',
+          name: 'IEEE Spectrum',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.engadget.com/rss.xml',
+          name: 'Engadget',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://9to5mac.com/feed/',
+          name: '9to5Mac',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.androidauthority.com/feed/',
+          name: 'Android Authority',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.tomshardware.com/feeds/all',
+          name: "Tom's Hardware",
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://rss.slashdot.org/Slashdot/slashdotMain',
+          name: 'Slashdot',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.theregister.com/headlines.atom',
+          name: 'The Register',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://lobste.rs/rss',
+          name: 'Lobsters',
+          isBuiltIn: true,
+        ),
+        FeedConfig(
+          url: 'https://www.cnet.com/rss/news/',
+          name: 'CNET',
           isBuiltIn: true,
         ),
       ];

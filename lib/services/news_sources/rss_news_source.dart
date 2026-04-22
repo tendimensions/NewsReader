@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:webfeed/webfeed.dart';
 import '../../models/article.dart';
+import '../../utils/html_utils.dart';
 import 'i_news_source.dart';
 
 /// RSS Feed implementation
@@ -11,9 +13,20 @@ class RssNewsSource implements INewsSource {
   final List<String> feedUrls;
   final String displayName;
 
+  /// Optional per-feed display name overrides (url → name).
+  /// When provided, the feed's own title is ignored in favour of this name,
+  /// so article.sourceName will match the user-visible FeedConfig.name.
+  final Map<String, String>? feedNames;
+
+  /// Optional per-feed article limits, parallel to [feedUrls].
+  /// When provided, at most feedLimits[i] articles are taken from feedUrls[i].
+  final List<int>? feedLimits;
+
   RssNewsSource({
     required this.feedUrls,
     this.displayName = 'RSS Feed',
+    this.feedNames,
+    this.feedLimits,
   });
 
   @override
@@ -28,19 +41,29 @@ class RssNewsSource implements INewsSource {
     try {
       final allArticles = <Article>[];
 
-      debugPrint('[RssNewsSource] Fetching from ${feedUrls.length} feeds...');
-      // Fetch from all configured RSS feeds
-      for (final feedUrl in feedUrls) {
-        try {
-          debugPrint('[RssNewsSource] Fetching: $feedUrl');
-          final articles = await _fetchFromFeed(feedUrl);
-          debugPrint('[RssNewsSource] Got ${articles.length} articles from $feedUrl');
-          allArticles.addAll(articles);
-        } catch (e) {
-          // Continue with other feeds if one fails
-          debugPrint('[RssNewsSource] FAILED $feedUrl: $e');
-          log('Failed to fetch from $feedUrl: $e');
-        }
+      debugPrint('[RssNewsSource] Fetching from ${feedUrls.length} feeds in parallel...');
+      // Fetch all feeds in parallel; errors are caught per-feed
+      final results = await Future.wait(
+        List.generate(feedUrls.length, (i) async {
+          final feedUrl = feedUrls[i];
+          final perFeedLimit =
+              (feedLimits != null && i < feedLimits!.length) ? feedLimits![i] : limit;
+          final sourceName = feedNames?[feedUrl];
+          try {
+            debugPrint('[RssNewsSource] Fetching: $feedUrl');
+            final articles =
+                await _fetchFromFeed(feedUrl, sourceName: sourceName);
+            debugPrint('[RssNewsSource] Got ${articles.length} articles from $feedUrl');
+            return articles.take(perFeedLimit).toList();
+          } catch (e) {
+            debugPrint('[RssNewsSource] FAILED $feedUrl: $e');
+            log('Failed to fetch from $feedUrl: $e');
+            return <Article>[];
+          }
+        }),
+      );
+      for (final batch in results) {
+        allArticles.addAll(batch);
       }
       debugPrint('[RssNewsSource] Total articles before pagination: ${allArticles.length}');
 
@@ -101,26 +124,34 @@ class RssNewsSource implements INewsSource {
   }
 
   /// Fetch and parse articles from a single RSS feed
-  Future<List<Article>> _fetchFromFeed(String feedUrl) async {
-    final response = await http.get(Uri.parse(feedUrl));
+  Future<List<Article>> _fetchFromFeed(String feedUrl,
+      {String? sourceName}) async {
+    final response = await http
+        .get(Uri.parse(feedUrl))
+        .timeout(const Duration(seconds: 15));
     debugPrint('[RssNewsSource] HTTP ${response.statusCode} from $feedUrl (${response.body.length} bytes)');
 
     if (response.statusCode != 200) {
       throw Exception('Failed to fetch RSS feed: ${response.statusCode}');
     }
 
+    // Decode as UTF-8 explicitly so curly quotes and other multi-byte
+    // characters aren't mangled by the default Latin-1 fallback.
+    final body = utf8.decode(response.bodyBytes, allowMalformed: true);
+
     // Try parsing as RSS first
     try {
-      final rssFeed = RssFeed.parse(response.body);
-      final articles = _parseRssFeed(rssFeed, feedUrl);
+      final rssFeed = RssFeed.parse(body);
+      final articles = _parseRssFeed(rssFeed, feedUrl, sourceName: sourceName);
       debugPrint('[RssNewsSource] Parsed ${articles.length} RSS items from $feedUrl');
       return articles;
     } catch (e) {
       debugPrint('[RssNewsSource] RSS parse failed for $feedUrl: $e, trying Atom...');
       // If RSS parsing fails, try Atom
       try {
-        final atomFeed = AtomFeed.parse(response.body);
-        final articles = _parseAtomFeed(atomFeed, feedUrl);
+        final atomFeed = AtomFeed.parse(body);
+        final articles =
+            _parseAtomFeed(atomFeed, feedUrl, sourceName: sourceName);
         debugPrint('[RssNewsSource] Parsed ${articles.length} Atom items from $feedUrl');
         return articles;
       } catch (e2) {
@@ -130,9 +161,10 @@ class RssNewsSource implements INewsSource {
   }
 
   /// Parse RSS feed to Article models
-  List<Article> _parseRssFeed(RssFeed feed, String feedUrl) {
+  List<Article> _parseRssFeed(RssFeed feed, String feedUrl,
+      {String? sourceName}) {
     final articles = <Article>[];
-    final feedTitle = feed.title ?? 'RSS Feed';
+    final feedTitle = sourceName ?? feed.title ?? 'RSS Feed';
     debugPrint('[RssNewsSource] _parseRssFeed: feed.items count = ${feed.items?.length ?? "null"}');
 
     for (final item in feed.items ?? []) {
@@ -148,10 +180,11 @@ class RssNewsSource implements INewsSource {
         final id = Uri.parse(url).host + url.hashCode.toString();
         final publishedAt = item.pubDate ?? DateTime.now();
 
+        final rawDescription = item.description;
         articles.add(Article(
           id: id,
-          title: title,
-          description: item.description,
+          title: decodeHtmlEntities(title),
+          description: rawDescription != null ? stripHtml(rawDescription) : null,
           content: item.content?.value ?? item.description,
           url: url,
           imageUrl: _extractImageUrl(item),
@@ -170,9 +203,10 @@ class RssNewsSource implements INewsSource {
   }
 
   /// Parse Atom feed to Article models
-  List<Article> _parseAtomFeed(AtomFeed feed, String feedUrl) {
+  List<Article> _parseAtomFeed(AtomFeed feed, String feedUrl,
+      {String? sourceName}) {
     final articles = <Article>[];
-    final feedTitle = feed.title ?? 'Atom Feed';
+    final feedTitle = sourceName ?? feed.title ?? 'Atom Feed';
     debugPrint('[RssNewsSource] _parseAtomFeed: feed.items count = ${feed.items?.length ?? "null"}');
 
     for (final entry in feed.items ?? []) {
@@ -188,10 +222,11 @@ class RssNewsSource implements INewsSource {
         final id = Uri.parse(url).host + url.hashCode.toString();
         final publishedAt = entry.published ?? entry.updated ?? DateTime.now();
 
+        final rawSummary = entry.summary;
         articles.add(Article(
           id: id,
-          title: title,
-          description: entry.summary,
+          title: decodeHtmlEntities(title),
+          description: rawSummary != null ? stripHtml(rawSummary) : null,
           content: entry.content ?? entry.summary,
           url: url,
           imageUrl: _extractAtomImageUrl(entry),

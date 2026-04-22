@@ -17,12 +17,25 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   bool _isSearching = false;
   List<Article>? _searchResults;
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_dismissSnackBar);
+  }
+
+  void _dismissSnackBar() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  }
+
+  @override
   void dispose() {
+    _scrollController.removeListener(_dismissSnackBar);
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -56,6 +69,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _openArticle(Article article) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ref.read(articleStateProvider.notifier).markRead(article.id);
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -79,11 +93,27 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
+  void _bookmarkArticle(Article article, bool wasBookmarked) {
+    ref.read(bookmarksProvider.notifier).toggle(article);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(wasBookmarked ? 'Bookmark removed' : 'Bookmarked'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => ref.read(bookmarksProvider.notifier).toggle(article),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final articlesAsync = ref.watch(articlesProvider);
+    final bookmarkedIds =
+        ref.watch(bookmarksProvider).map((a) => a.id).toSet();
     final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
     final articleState = ref.watch(articleStateProvider);
+    final feedFilter = ref.watch(feedFilterProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -140,20 +170,52 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
           ),
 
+          // Active feed filter chip
+          if (feedFilter != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Row(
+                children: [
+                  FilterChip(
+                    label: Text(feedFilter),
+                    selected: true,
+                    onSelected: (_) =>
+                        ref.read(feedFilterProvider.notifier).state = null,
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    onDeleted: () =>
+                        ref.read(feedFilterProvider.notifier).state = null,
+                  ),
+                ],
+              ),
+            ),
+
           // Content
           Expanded(
             child: _isSearching
                 ? const Center(child: CircularProgressIndicator())
                 : _searchResults != null
                     ? _buildArticleList(
-                        _searchResults!, bookmarksNotifier, articleState, theme)
+                        _searchResults!, bookmarkedIds, bookmarksNotifier, articleState, theme)
                     : articlesAsync.when(
-                        data: (articles) => RefreshIndicator(
-                          onRefresh: () =>
-                              ref.read(articlesProvider.notifier).refresh(),
-                          child: _buildArticleList(
-                              articles, bookmarksNotifier, articleState, theme),
-                        ),
+                        data: (articles) {
+                          var visible = articles
+                              .where((a) =>
+                                  !articleState.deletedIds.contains(a.id))
+                              .toList();
+                          if (feedFilter != null) {
+                            visible = visible
+                                .where((a) => a.sourceName == feedFilter)
+                                .toList();
+                          }
+                          return RefreshIndicator(
+                            onRefresh: () =>
+                                ref.read(articlesProvider.notifier).refresh(),
+                            child: _buildArticleList(
+                                visible, bookmarkedIds, bookmarksNotifier,
+                                articleState, theme,
+                                scrollController: _scrollController),
+                          );
+                        },
                         loading: () => const Center(
                             child: CircularProgressIndicator()),
                         error: (err, _) => Center(
@@ -197,10 +259,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   Widget _buildArticleList(
     List<Article> articles,
+    Set<String> bookmarkedIds,
     BookmarksNotifier bookmarksNotifier,
     ArticleStateData articleState,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    ScrollController? scrollController,
+  }) {
     if (articles.isEmpty) {
       return Center(
         child: Column(
@@ -228,25 +292,43 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     }
 
     return ListView.builder(
+      controller: scrollController,
       padding: const EdgeInsets.only(top: 4, bottom: 16),
       itemCount: articles.length,
       itemBuilder: (context, index) {
         final article = articles[index];
         final isRead = articleState.readIds.contains(article.id);
+        final isBookmarked = bookmarkedIds.contains(article.id);
         return Dismissible(
           key: ValueKey(article.id),
-          direction: DismissDirection.endToStart,
+          direction: DismissDirection.horizontal,
           background: Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.only(left: 24),
+            color: theme.colorScheme.primaryContainer,
+            child: Icon(
+              isBookmarked ? Icons.bookmark_remove_outlined : Icons.bookmark_add_outlined,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
+          ),
+          secondaryBackground: Container(
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 24),
             color: theme.colorScheme.errorContainer,
             child: Icon(Icons.delete_outline,
                 color: theme.colorScheme.onErrorContainer),
           ),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              _bookmarkArticle(article, isBookmarked);
+              return false;
+            }
+            return true;
+          },
           onDismissed: (_) => _deleteArticle(article),
           child: ArticleCard(
             article: article,
-            isBookmarked: bookmarksNotifier.isBookmarked(article.id),
+            isBookmarked: isBookmarked,
             isRead: isRead,
             onTap: () => _openArticle(article),
             onBookmarkTap: () => bookmarksNotifier.toggle(article),

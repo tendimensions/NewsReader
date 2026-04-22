@@ -1,4 +1,6 @@
-# NewsReader - Claude Code Instructions
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -8,7 +10,18 @@ Cross-platform news reader app built with Flutter (Dart SDK ^3.9.2). Aggregates 
 
 ## Agent Instructions
 
-See [AGENTS.md](AGENTS.md) for issue tracking workflows using **beads** (`bd`).
+See [AGENTS.md](../AGENTS.md) for agent workflow instructions.
+
+## Skills
+
+Task-specific guidance for common workflows:
+
+| Skill | File | When to use |
+|-------|------|-------------|
+| Git workflow | [git/SKILL.md](git/SKILL.md) | Branching, committing, pushing, session wrap-up |
+| Flutter development | [flutter/SKILL.md](flutter/SKILL.md) | Commands, builds, analysis, CI/CD |
+| Hive storage | [hive/SKILL.md](hive/SKILL.md) | Model changes, adapter regeneration |
+| Riverpod | [riverpod/SKILL.md](riverpod/SKILL.md) | Provider patterns, state management, anti-patterns |
 
 ## Requirements
 
@@ -27,7 +40,7 @@ See [AGENTS.md](AGENTS.md) for issue tracking workflows using **beads** (`bd`).
 
 ### Data & Sources
 - **Initial launch**: RSS feeds only (no NewsAPI key required)
-- **Built-in feeds** (tech-focused): Ars Technica, The Verge, TechCrunch, Hacker News, etc.
+- **Built-in feeds** (tech-focused): Ars Technica, The Verge, TechCrunch, Hacker News, Wired, MIT Technology Review, IEEE Spectrum, Engadget, 9to5Mac, Android Authority, Tom's Hardware, Slashdot, The Register, Lobsters, CNET
 - **Feed customization**: Users can add/remove custom RSS feed URLs and toggle built-in feeds on/off via settings
 - **Deduplication**: Combined strategy (URL + title similarity) via existing `NewsAggregatorService`
 
@@ -38,7 +51,7 @@ See [AGENTS.md](AGENTS.md) for issue tracking workflows using **beads** (`bd`).
 
 ### Not in Initial Release
 - Push notifications
-- NewsAPI.org integration (code exists in [lib/services/news_sources/news_api_source.dart](lib/services/news_sources/news_api_source.dart), just not active)
+- NewsAPI.org integration (code exists in [lib/services/news_sources/news_api_source.dart](../lib/services/news_sources/news_api_source.dart), just not active)
 - Full offline article content + image caching
 
 ## Tech Stack
@@ -51,9 +64,9 @@ See [AGENTS.md](AGENTS.md) for issue tracking workflows using **beads** (`bd`).
 - **RSS parsing**: `webfeed` package
 - **HTML rendering**: `flutter_html` for article content with embedded HTML
 - **URL launching**: `url_launcher` + WSL fallback for opening articles in browser
-- **CI/CD**: CodeMagic ([codemagic.yaml](codemagic.yaml), setup guide in [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md))
+- **CI/CD**: CodeMagic ([codemagic.yaml](../codemagic.yaml), setup guide in [CODEMAGIC_SETUP.md](../CODEMAGIC_SETUP.md))
 - **Distribution**: Firebase App Distribution
-- **Linting**: `flutter_lints` via [analysis_options.yaml](analysis_options.yaml)
+- **Linting**: `flutter_lints` via [analysis_options.yaml](../analysis_options.yaml)
 
 ## Project Structure
 
@@ -95,33 +108,30 @@ lib/
 
 ## Architecture
 
-- **News source interface**: `INewsSource` in [lib/services/news_sources/i_news_source.dart](lib/services/news_sources/i_news_source.dart) — implement this to add new sources
+- **News source interface**: `INewsSource` in [lib/services/news_sources/i_news_source.dart](../lib/services/news_sources/i_news_source.dart) — implement this to add new sources
 - **Aggregator**: `NewsAggregatorService` fetches from all sources in parallel, deduplicates, and provides filtering (by source count, source name, categories)
 - **Deduplication strategies**: `url`, `title`, `titleSimilarity` (Levenshtein, >85% threshold), `combined` (recommended)
 - **Providers**: Riverpod providers expose aggregator, bookmarks, feed config, theme, and article cache state
 - **Repositories**: Hive-backed repositories for bookmarks, feed configuration, cached articles, and settings
 
-## Common Commands
+### Critical Riverpod Pattern
 
-```bash
-flutter pub get          # Install dependencies
-flutter run              # Run in debug mode
-flutter test             # Run tests
-flutter analyze          # Run static analysis
-flutter build apk        # Build Android APK
-flutter build ios        # Build iOS
-flutter build linux      # Build Linux
-flutter build windows    # Build Windows
-```
+**Do not use `ref.watch` inside `AsyncNotifier.build()` for providers that change at interaction time** (e.g. `articleStateProvider`). When a watched dependency changes, Riverpod disposes and re-runs `build()` entirely — including any network fetches — and transitions through `AsyncLoading` first. This unmounts `ListView` widgets and loses scroll position.
 
-## CI/CD Workflows (CodeMagic)
+Current intentional dependencies in `ArticlesNotifier.build()`:
 
-- **ios-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → code signing → build IPA → Firebase distribution
-- **android-workflow**: push to `main`/`develop` → generate Hive adapters → analyze → test → build APK+AAB → Firebase distribution
-- **dev-workflow**: push/PR on any branch → generate Hive adapters → analyze → test → build iOS + Android → Firebase distribution
+- `ref.watch(newsAggregatorProvider)` — intentional, feed config changes should trigger a re-fetch
+- `articleStateProvider` (read/deleted filtering) is **not** watched here; filtering happens in `FeedScreen`'s data callback instead
+
+### Scroll Position Preservation
+
+`FeedScreen` uses a `ScrollController` on the main `ListView`. This works because `FeedScreen`'s state stays mounted on the Navigator stack during article navigation. Any transition to `AsyncLoading` in `articlesProvider` would unmount the `ListView` and reset the controller — see the pattern above.
 
 ## Important Notes
 
-- API keys (NEWS_API_KEY) must be configured as secure environment variables in CodeMagic, never committed
+- **Before starting any work**: run `git pull` to ensure you are on the latest version of the current branch
+- **New work goes on a new branch**: never commit new feature or fix work directly to `main`; create a descriptive branch (e.g. `claude/feature-name`) before making changes
 - Firebase config files (`google-services.json`, `GoogleService-Info.plist`) are gitignored
 - Tests are minimal (only default `widget_test.dart`) — expand as features are built
+- After modifying any Hive model, regenerate adapters — see [hive/SKILL.md](hive/SKILL.md)
+- **No API keys needed** for initial release — app uses RSS feeds only

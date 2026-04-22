@@ -2,18 +2,29 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/article.dart';
 import '../providers/bookmarks_provider.dart';
+import '../utils/html_utils.dart';
 
 /// Reader mode article view — clean, distraction-free layout
-class ArticleScreen extends ConsumerWidget {
+class ArticleScreen extends ConsumerStatefulWidget {
   final Article article;
 
   const ArticleScreen({super.key, required this.article});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ArticleScreen> createState() => _ArticleScreenState();
+}
+
+class _ArticleScreenState extends ConsumerState<ArticleScreen> {
+  Article get article => widget.article;
+
+  final _shareButtonKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
     final isBookmarked = ref.watch(bookmarksProvider
@@ -22,6 +33,12 @@ class ArticleScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          IconButton(
+            key: _shareButtonKey,
+            icon: const Icon(Icons.share),
+            tooltip: 'Share article',
+            onPressed: () => _shareArticle(context),
+          ),
           IconButton(
             icon: const Icon(Icons.open_in_browser),
             tooltip: 'Open in browser',
@@ -91,7 +108,7 @@ class ArticleScreen extends ConsumerWidget {
 
             // Title
             Text(
-              article.title,
+              decodeHtmlEntities(article.title),
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -231,6 +248,15 @@ class ArticleScreen extends ConsumerWidget {
         }
       },
     );
+  }
+
+  Future<void> _shareArticle(BuildContext context) async {
+    final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromLTWH(0, 0, 100, 50);
+    final text = '${article.title}\n${article.url}';
+    await Share.share(text, sharePositionOrigin: origin);
   }
 
   Future<void> _openInBrowser(BuildContext context) async {

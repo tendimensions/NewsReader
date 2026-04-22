@@ -22,8 +22,8 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
       : _repo = repo,
         super(repo.getAll());
 
-  Future<void> addFeed(String url, String name) async {
-    final feed = FeedConfig(url: url, name: name);
+  Future<void> addFeed(String url, String name, {int articleLimit = 5}) async {
+    final feed = FeedConfig(url: url, name: name, articleLimit: articleLimit);
     await _repo.addFeed(feed);
     state = _repo.getAll();
   }
@@ -33,8 +33,9 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
     state = _repo.getAll();
   }
 
-  Future<void> updateFeed(String oldUrl, String newUrl, String newName) async {
-    await _repo.updateFeed(oldUrl, newUrl, newName);
+  Future<void> updateFeed(
+      String oldUrl, String newUrl, String newName, int articleLimit) async {
+    await _repo.updateFeed(oldUrl, newUrl, newName, articleLimit);
     state = _repo.getAll();
   }
 
@@ -70,6 +71,8 @@ final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
   final rssSource = RssNewsSource(
     displayName: 'RSS Feeds',
     feedUrls: enabledConfigs.map((c) => c.url).toList(),
+    feedNames: {for (final c in enabledConfigs) c.url: c.name},
+    feedLimits: enabledConfigs.map((c) => c.articleLimit).toList(),
   );
 
   return NewsAggregatorService(
@@ -77,6 +80,9 @@ final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
     deduplicationStrategy: DeduplicationStrategy.combined,
   );
 });
+
+/// Active feed filter — when set, FeedScreen shows only articles from this feed name
+final feedFilterProvider = StateProvider<String?>((ref) => null);
 
 /// Fetches articles from the aggregator, filters deleted, caches for offline
 final articlesProvider =
@@ -88,38 +94,66 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
   Future<List<Article>> build() async {
     final aggregator = ref.watch(newsAggregatorProvider);
     final cacheRepo = ref.read(articleCacheRepositoryProvider);
-    final articleState = ref.watch(articleStateProvider);
 
-    try {
-      debugPrint('[ArticlesNotifier] build() called, fetching articles...');
-      final articles = await aggregator.fetchArticles(limit: 50);
-      debugPrint('[ArticlesNotifier] Fetched ${articles.length} articles from aggregator');
-      debugPrint('[ArticlesNotifier] Deleted IDs: ${articleState.deletedIds.length}');
-      await cacheRepo.cacheArticles(articles);
-      final filtered = articles
-          .where((a) => !articleState.deletedIds.contains(a.id))
-          .toList();
-      debugPrint('[ArticlesNotifier] Returning ${filtered.length} articles after filtering');
-      return filtered;
-    } catch (e, stack) {
-      debugPrint('[ArticlesNotifier] ERROR fetching articles: $e');
-      debugPrint('[ArticlesNotifier] Stack: $stack');
-      final cached = cacheRepo.getAll();
-      if (cached.isNotEmpty) {
-        debugPrint('[ArticlesNotifier] Falling back to ${cached.length} cached articles');
-        return cached
-            .where((a) => !articleState.deletedIds.contains(a.id))
-            .toList();
+    // Guard against stale background fetches when the notifier is rebuilt
+    var cancelled = false;
+    ref.onDispose(() => cancelled = true);
+
+    final cached = cacheRepo.getAll();
+    debugPrint('[ArticlesNotifier] build() called, returning ${cached.length} cached articles immediately');
+
+    // Fetch in the background; update state when done without blocking startup
+    Future.microtask(() async {
+      try {
+        debugPrint('[ArticlesNotifier] Background fetch starting...');
+        final articles = await aggregator.fetchArticles(limit: 50);
+        if (cancelled) return;
+        debugPrint('[ArticlesNotifier] Background fetch complete: ${articles.length} articles');
+        await cacheRepo.cacheArticles(articles);
+        if (cancelled) return;
+        final bookmarksRepo = ref.read(bookmarksRepositoryProvider);
+        final liveIds = {
+          ...cacheRepo.getAll().map((a) => a.id),
+          ...bookmarksRepo.getAll().map((a) => a.id),
+        };
+        await ref.read(articleStateProvider.notifier).pruneOrphans(liveIds);
+        if (cancelled) return;
+        state = AsyncData(articles);
+      } catch (e, stack) {
+        if (cancelled) return;
+        debugPrint('[ArticlesNotifier] Background fetch ERROR: $e');
+        // Only surface the error if we have nothing to show
+        final current = state;
+        if (current is AsyncData<List<Article>> && current.value.isEmpty) {
+          state = AsyncError(e, stack);
+        }
       }
-      rethrow;
-    }
+    });
+
+    return cached;
   }
 
   Future<void> refresh() async {
     debugPrint('[ArticlesNotifier] refresh() called');
+    final aggregator = ref.read(newsAggregatorProvider);
+    final cacheRepo = ref.read(articleCacheRepositoryProvider);
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => build());
-    debugPrint('[ArticlesNotifier] refresh() done, state: ${state.hasValue ? "${state.value!.length} articles" : state.hasError ? "error: ${state.error}" : "loading"}');
+    try {
+      final articles = await aggregator.fetchArticles(limit: 50);
+      await cacheRepo.cacheArticles(articles);
+      final bookmarksRepo = ref.read(bookmarksRepositoryProvider);
+      final liveIds = {
+        ...cacheRepo.getAll().map((a) => a.id),
+        ...bookmarksRepo.getAll().map((a) => a.id),
+      };
+      await ref.read(articleStateProvider.notifier).pruneOrphans(liveIds);
+      state = AsyncData(articles);
+      debugPrint('[ArticlesNotifier] refresh() done: ${articles.length} articles');
+    } catch (e, stack) {
+      debugPrint('[ArticlesNotifier] refresh() ERROR: $e');
+      final cached = cacheRepo.getAll();
+      state = cached.isNotEmpty ? AsyncData(cached) : AsyncError(e, stack);
+    }
   }
 
   Future<List<Article>> search(String query) async {

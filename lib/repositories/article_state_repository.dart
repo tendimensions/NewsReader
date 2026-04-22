@@ -47,4 +47,17 @@ class ArticleStateRepository {
   Future<void> clearRead() async {
     await _readBox.clear();
   }
+
+  /// Removes read/deleted IDs that are no longer in the live article set
+  /// (i.e. not in the cache and not bookmarked). Call after cache is trimmed.
+  Future<void> pruneOrphans(Set<String> liveIds) async {
+    final staleRead = _readBox.keys.cast<String>().where((id) => !liveIds.contains(id)).toList();
+    for (final id in staleRead) {
+      await _readBox.delete(id);
+    }
+    final staleDeleted = _deletedBox.keys.cast<String>().where((id) => !liveIds.contains(id)).toList();
+    for (final id in staleDeleted) {
+      await _deletedBox.delete(id);
+    }
+  }
 }
