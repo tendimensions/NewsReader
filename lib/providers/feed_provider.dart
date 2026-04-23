@@ -84,6 +84,13 @@ final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
 /// Active feed filter — when set, FeedScreen shows only articles from this feed name
 final feedFilterProvider = StateProvider<String?>((ref) => null);
 
+enum ArticleGrouping { chronological, bySource, byTopic }
+
+/// Controls how articles are grouped/sorted in FeedScreen. Resets to
+/// chronological on app restart (not persisted).
+final articleGroupingProvider =
+    StateProvider<ArticleGrouping>((_) => ArticleGrouping.chronological);
+
 /// Fetches articles from the aggregator, filters deleted, caches for offline
 final articlesProvider =
     AsyncNotifierProvider<ArticlesNotifier, List<Article>>(
