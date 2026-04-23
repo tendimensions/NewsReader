@@ -29,7 +29,7 @@ param(
     [string] $AppId,
     [Parameter(Mandatory)][string] $Branch,
     [ValidateSet("ios-workflow", "android-workflow", "dev-workflow")]
-    [string] $Workflow = "dev-workflow"
+    [string] $Workflow = "ios-workflow"
 )
 
 # Load ApiKey / AppId from app.info if not supplied on the command line

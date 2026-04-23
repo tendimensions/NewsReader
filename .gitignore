@@ -123,3 +123,5 @@ firebase_app_id_file.json
 **/fastlane/Preview.html
 **/fastlane/screenshots
 **/fastlane/test_output
+
+app.info
