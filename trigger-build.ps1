@@ -25,12 +25,23 @@
 #>
 
 param(
-    [Parameter(Mandatory)][string] $ApiKey,
-    [Parameter(Mandatory)][string] $AppId,
+    [string] $ApiKey,
+    [string] $AppId,
     [Parameter(Mandatory)][string] $Branch,
     [ValidateSet("ios-workflow", "android-workflow", "dev-workflow")]
     [string] $Workflow = "dev-workflow"
 )
+
+# Load ApiKey / AppId from app.info if not supplied on the command line
+if (-not $ApiKey -or -not $AppId) {
+    $infoFile = Join-Path $PSScriptRoot "app.info"
+    if (Test-Path $infoFile) {
+        . $infoFile
+    }
+}
+
+if (-not $ApiKey) { Write-Error "ApiKey is required (pass -ApiKey or set it in app.info)"; exit 1 }
+if (-not $AppId)  { Write-Error "AppId is required (pass -AppId or set it in app.info)";  exit 1 }
 
 $body = @{
     appId      = $AppId
