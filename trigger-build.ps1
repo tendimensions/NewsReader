@@ -32,11 +32,16 @@ param(
     [string] $Workflow = "ios-workflow"
 )
 
-# Load ApiKey / AppId from app.info if not supplied on the command line
+# Load ApiKey / AppId from app.info if not supplied on the command line.
+# Parsed manually because PowerShell 5.1 won't dot-source non-.ps1 files.
 if (-not $ApiKey -or -not $AppId) {
     $infoFile = Join-Path $PSScriptRoot "app.info"
     if (Test-Path $infoFile) {
-        . $infoFile
+        Get-Content $infoFile | ForEach-Object {
+            if ($_ -match '^\$(\w+)=(.+)$') {
+                Set-Variable -Name $Matches[1] -Value $Matches[2]
+            }
+        }
     }
 }
 
