@@ -37,8 +37,8 @@ param(
 if (-not $ApiKey -or -not $AppId) {
     $infoFile = Join-Path $PSScriptRoot "app.info"
     if (Test-Path $infoFile) {
-        Get-Content $infoFile | ForEach-Object {
-            if ($_ -match '^\$(\w+)=(.+)$') {
+        foreach ($line in (Get-Content $infoFile)) {
+            if ($line -match '^\$(\w+)=(.+)$') {
                 Set-Variable -Name $Matches[1] -Value $Matches[2]
             }
         }
