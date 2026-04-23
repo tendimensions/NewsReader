@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.0.10
+
+- Article grouping & sorting: new Sort/Group button in the feed toolbar lets you switch between three modes:
+  - **Chronological** — default newest-first flat list (unchanged)
+  - **By Source** — sticky section headers, publications sorted alphabetically
+  - **By Topic** — sticky section headers grouped by topic category (AI & ML, Security, Mobile, Hardware, Software & Dev, Policy & Law, Science & Space, Business); topics sorted by article count so the most active appear first
+- Topic classification uses a two-layer strategy: RSS feed categories first (normalized), keyword taxonomy fallback for uncategorized articles
+- Sort/Group button tints to the primary color when a non-default mode is active
+- Search always shows a flat chronological list regardless of active grouping
+- `trigger-build.ps1` now reads `ApiKey` and `AppId` from a local `app.info` file when not passed on the command line
+
+---
+
 ## 0.0.9
 
 - Fixed: Share button now works on iOS — passes the button's screen position as required by the iOS share sheet

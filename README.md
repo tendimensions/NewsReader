@@ -8,6 +8,7 @@ A cross-platform news reader built with Flutter. Aggregates articles from multip
 ## Features
 
 - Reverse-chronological feed with search
+- Article grouping & sorting — switch between chronological, by source, or by topic category
 - Built-in tech feeds (Ars Technica, The Verge, TechCrunch, Hacker News, and more)
 - Add/remove custom RSS feed URLs; toggle built-in feeds on/off
 - Article reader mode with HTML rendering, selectable text, open-in-browser, and bookmarking
@@ -63,7 +64,7 @@ lib/
 ├── providers/           # Riverpod providers
 ├── repositories/        # Hive-backed storage layer
 ├── screens/             # Feed, Article reader, Settings
-├── services/            # NewsAggregatorService + RSS/NewsAPI sources
+├── services/            # NewsAggregatorService, RSS source, TopicClassifier
 └── widgets/             # Shared UI components (ArticleCard)
 ```
 
@@ -88,6 +89,13 @@ Builds run on CodeMagic. Three workflows are configured in [`codemagic.yaml`](co
 - **`dev-workflow`** — triggered on push/PR to any branch
 
 Each workflow generates Hive adapters, runs analysis and tests, then builds and distributes via Firebase App Distribution.
+
+To trigger a build manually, run [`trigger-build.ps1`](trigger-build.ps1) from PowerShell. It reads `ApiKey` and `AppId` from a local `app.info` file (gitignored) if not passed on the command line:
+
+```powershell
+.\trigger-build.ps1 -Branch main
+.\trigger-build.ps1 -Branch main -Workflow ios-workflow
+```
 
 ## Contributing
 
