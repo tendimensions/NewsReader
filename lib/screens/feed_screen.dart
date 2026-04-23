@@ -4,6 +4,7 @@ import '../models/article.dart';
 import '../providers/feed_provider.dart';
 import '../providers/bookmarks_provider.dart';
 import '../providers/article_state_provider.dart';
+import '../services/topic_classifier.dart';
 import '../widgets/article_card.dart';
 import 'article_screen.dart';
 import 'settings_screen.dart';
@@ -106,6 +107,66 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
+  void _showGroupingSheet(BuildContext context) {
+    final current = ref.read(articleGroupingProvider);
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  Text('Group & Sort', style: theme.textTheme.titleMedium),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            RadioGroup<ArticleGrouping>(
+                  groupValue: current,
+                  onChanged: (value) {
+                    if (value != null) {
+                      ref.read(articleGroupingProvider.notifier).state = value;
+                    }
+                    Navigator.of(sheetContext).pop();
+                  },
+                  child: Column(
+                    children: ArticleGrouping.values.map((mode) {
+                      return ListTile(
+                        leading: Radio<ArticleGrouping>(value: mode),
+                        title: Text(_groupingLabel(mode)),
+                        subtitle: Text(_groupingDescription(mode)),
+                        onTap: () {
+                          ref.read(articleGroupingProvider.notifier).state =
+                              mode;
+                          Navigator.of(sheetContext).pop();
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _groupingLabel(ArticleGrouping mode) => switch (mode) {
+        ArticleGrouping.chronological => 'Chronological',
+        ArticleGrouping.bySource => 'By Source',
+        ArticleGrouping.byTopic => 'By Topic',
+      };
+
+  String _groupingDescription(ArticleGrouping mode) => switch (mode) {
+        ArticleGrouping.chronological => 'Newest articles first',
+        ArticleGrouping.bySource => 'Grouped by publication, alphabetically',
+        ArticleGrouping.byTopic => 'Grouped by topic category',
+      };
+
   @override
   Widget build(BuildContext context) {
     final articlesAsync = ref.watch(articlesProvider);
@@ -114,7 +175,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
     final articleState = ref.watch(articleStateProvider);
     final feedFilter = ref.watch(feedFilterProvider);
+    final grouping = ref.watch(articleGroupingProvider);
     final theme = Theme.of(context);
+    final isNonDefault = grouping != ArticleGrouping.chronological;
 
     return Scaffold(
       appBar: AppBar(
@@ -124,6 +187,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Fetch articles',
             onPressed: () => ref.read(articlesProvider.notifier).refresh(),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.sort,
+              color: isNonDefault ? theme.colorScheme.primary : null,
+            ),
+            tooltip: 'Group & sort',
+            onPressed: () => _showGroupingSheet(context),
           ),
           IconButton(
             icon: const Icon(Icons.bookmark_outline),
@@ -194,8 +265,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             child: _isSearching
                 ? const Center(child: CircularProgressIndicator())
                 : _searchResults != null
+                    // Search always shows flat chronological
                     ? _buildArticleList(
-                        _searchResults!, bookmarkedIds, bookmarksNotifier, articleState, theme)
+                        _searchResults!, bookmarkedIds, bookmarksNotifier,
+                        articleState, theme)
                     : articlesAsync.when(
                         data: (articles) {
                           var visible = articles
@@ -213,7 +286,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                             child: _buildArticleList(
                                 visible, bookmarkedIds, bookmarksNotifier,
                                 articleState, theme,
-                                scrollController: _scrollController),
+                                scrollController: _scrollController,
+                                grouping: grouping),
                           );
                         },
                         loading: () => const Center(
@@ -264,6 +338,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     ArticleStateData articleState,
     ThemeData theme, {
     ScrollController? scrollController,
+    ArticleGrouping grouping = ArticleGrouping.chronological,
   }) {
     if (articles.isEmpty) {
       return Center(
@@ -291,51 +366,134 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       );
     }
 
+    if (grouping != ArticleGrouping.chronological &&
+        scrollController != null) {
+      return _buildGroupedList(articles, bookmarkedIds, bookmarksNotifier,
+          articleState, theme, grouping, scrollController);
+    }
+
     return ListView.builder(
       controller: scrollController,
       padding: const EdgeInsets.only(top: 4, bottom: 16),
       itemCount: articles.length,
-      itemBuilder: (context, index) {
-        final article = articles[index];
-        final isRead = articleState.readIds.contains(article.id);
-        final isBookmarked = bookmarkedIds.contains(article.id);
-        return Dismissible(
-          key: ValueKey(article.id),
-          direction: DismissDirection.horizontal,
-          background: Container(
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.only(left: 24),
-            color: theme.colorScheme.primaryContainer,
-            child: Icon(
-              isBookmarked ? Icons.bookmark_remove_outlined : Icons.bookmark_add_outlined,
-              color: theme.colorScheme.onPrimaryContainer,
+      itemBuilder: (context, index) =>
+          _buildDismissibleCard(articles[index], bookmarkedIds,
+              bookmarksNotifier, articleState, theme),
+    );
+  }
+
+  Widget _buildGroupedList(
+    List<Article> articles,
+    Set<String> bookmarkedIds,
+    BookmarksNotifier bookmarksNotifier,
+    ArticleStateData articleState,
+    ThemeData theme,
+    ArticleGrouping grouping,
+    ScrollController scrollController,
+  ) {
+    final sections = _groupArticles(articles, grouping);
+
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        const SliverPadding(padding: EdgeInsets.only(top: 4)),
+        for (final entry in sections.entries) ...[
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _SectionHeaderDelegate(
+              title: entry.key,
+              count: entry.value.length,
+              theme: theme,
             ),
           ),
-          secondaryBackground: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 24),
-            color: theme.colorScheme.errorContainer,
-            child: Icon(Icons.delete_outline,
-                color: theme.colorScheme.onErrorContainer),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildDismissibleCard(
+                  entry.value[index], bookmarkedIds, bookmarksNotifier,
+                  articleState, theme),
+              childCount: entry.value.length,
+            ),
           ),
-          confirmDismiss: (direction) async {
-            if (direction == DismissDirection.startToEnd) {
-              _bookmarkArticle(article, isBookmarked);
-              return false;
-            }
-            return true;
-          },
-          onDismissed: (_) => _deleteArticle(article),
-          child: ArticleCard(
-            article: article,
-            isBookmarked: isBookmarked,
-            isRead: isRead,
-            onTap: () => _openArticle(article),
-            onBookmarkTap: () => bookmarksNotifier.toggle(article),
-            onDelete: () => _deleteArticle(article),
-          ),
-        );
+        ],
+        const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
+      ],
+    );
+  }
+
+  /// Groups and sorts articles into an ordered map of section → articles.
+  Map<String, List<Article>> _groupArticles(
+      List<Article> articles, ArticleGrouping grouping) {
+    final groups = <String, List<Article>>{};
+
+    if (grouping == ArticleGrouping.bySource) {
+      for (final article in articles) {
+        (groups[article.sourceName] ??= []).add(article);
+      }
+      final sorted = groups.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      return Map.fromEntries(sorted);
+    }
+
+    // byTopic
+    for (final article in articles) {
+      final bucket = TopicClassifier.classify(article);
+      (groups[bucket] ??= []).add(article);
+    }
+    final sorted = groups.entries.toList()
+      ..sort((a, b) {
+        if (a.key == TopicClassifier.other) return 1;
+        if (b.key == TopicClassifier.other) return -1;
+        return b.value.length.compareTo(a.value.length);
+      });
+    return Map.fromEntries(sorted);
+  }
+
+  Widget _buildDismissibleCard(
+    Article article,
+    Set<String> bookmarkedIds,
+    BookmarksNotifier bookmarksNotifier,
+    ArticleStateData articleState,
+    ThemeData theme,
+  ) {
+    final isRead = articleState.readIds.contains(article.id);
+    final isBookmarked = bookmarkedIds.contains(article.id);
+    return Dismissible(
+      key: ValueKey(article.id),
+      direction: DismissDirection.horizontal,
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        color: theme.colorScheme.primaryContainer,
+        child: Icon(
+          isBookmarked
+              ? Icons.bookmark_remove_outlined
+              : Icons.bookmark_add_outlined,
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        color: theme.colorScheme.errorContainer,
+        child: Icon(Icons.delete_outline,
+            color: theme.colorScheme.onErrorContainer),
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          _bookmarkArticle(article, isBookmarked);
+          return false;
+        }
+        return true;
       },
+      onDismissed: (_) => _deleteArticle(article),
+      child: ArticleCard(
+        article: article,
+        isBookmarked: isBookmarked,
+        isRead: isRead,
+        onTap: () => _openArticle(article),
+        onBookmarkTap: () => bookmarksNotifier.toggle(article),
+        onDelete: () => _deleteArticle(article),
+      ),
     );
   }
 
@@ -401,4 +559,54 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       ),
     );
   }
+}
+
+class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final String title;
+  final int count;
+  final ThemeData theme;
+
+  const _SectionHeaderDelegate({
+    required this.title,
+    required this.count,
+    required this.theme,
+  });
+
+  @override
+  double get minExtent => 40;
+
+  @override
+  double get maxExtent => 40;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '$count',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SectionHeaderDelegate old) =>
+      title != old.title || count != old.count;
 }

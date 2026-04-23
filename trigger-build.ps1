@@ -25,12 +25,28 @@
 #>
 
 param(
-    [Parameter(Mandatory)][string] $ApiKey,
-    [Parameter(Mandatory)][string] $AppId,
+    [string] $ApiKey,
+    [string] $AppId,
     [Parameter(Mandatory)][string] $Branch,
     [ValidateSet("ios-workflow", "android-workflow", "dev-workflow")]
-    [string] $Workflow = "dev-workflow"
+    [string] $Workflow = "ios-workflow"
 )
+
+# Load ApiKey / AppId from app.info if not supplied on the command line.
+# Parsed manually because PowerShell 5.1 won't dot-source non-.ps1 files.
+if (-not $ApiKey -or -not $AppId) {
+    $infoFile = Join-Path $PSScriptRoot "app.info"
+    if (Test-Path $infoFile) {
+        foreach ($line in (Get-Content $infoFile)) {
+            if ($line -match '^\$(\w+)=(.+)$') {
+                Set-Variable -Name $Matches[1] -Value $Matches[2]
+            }
+        }
+    }
+}
+
+if (-not $ApiKey) { Write-Error "ApiKey is required (pass -ApiKey or set it in app.info)"; exit 1 }
+if (-not $AppId)  { Write-Error "AppId is required (pass -AppId or set it in app.info)";  exit 1 }
 
 $body = @{
     appId      = $AppId
