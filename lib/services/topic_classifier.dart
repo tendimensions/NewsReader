@@ -151,4 +151,10 @@ class TopicClassifier {
 
     return bestBucket ?? other;
   }
+
+  /// Returns the canonical topic bucket for a raw RSS category label, or null
+  /// if the category does not map to any known bucket.
+  static String? bucketForCategory(String rawCategory) {
+    return _categoryNormalization[rawCategory.toLowerCase().trim()];
+  }
 }

@@ -6,6 +6,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/article.dart';
 import '../providers/bookmarks_provider.dart';
+import '../providers/feed_provider.dart';
+import '../services/topic_classifier.dart';
 import '../utils/html_utils.dart';
 
 /// Reader mode article view — clean, distraction-free layout
@@ -159,10 +161,21 @@ class _ArticleScreenState extends ConsumerState<ArticleScreen> {
                 runSpacing: 4,
                 children: article.categories
                     .where((c) => c.isNotEmpty)
-                    .map((cat) => Chip(
-                          label: Text(cat),
-                          visualDensity: VisualDensity.compact,
-                        ))
+                    .map((cat) {
+                      final bucket = TopicClassifier.bucketForCategory(cat);
+                      return ActionChip(
+                        label: Text(cat),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: bucket == null
+                            ? null
+                            : () {
+                                ref
+                                    .read(topicFilterProvider.notifier)
+                                    .state = bucket;
+                                Navigator.of(context).pop();
+                              },
+                      );
+                    })
                     .toList(),
               ),
               const SizedBox(height: 16),

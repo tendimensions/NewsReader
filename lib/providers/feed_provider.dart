@@ -84,6 +84,9 @@ final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
 /// Active feed filter — when set, FeedScreen shows only articles from this feed name
 final feedFilterProvider = StateProvider<String?>((ref) => null);
 
+/// Active topic filter — when set, FeedScreen shows only articles in this canonical topic bucket
+final topicFilterProvider = StateProvider<String?>((ref) => null);
+
 enum ArticleGrouping { chronological, bySource, byTopic }
 
 /// Controls how articles are grouped/sorted in FeedScreen. Resets to
