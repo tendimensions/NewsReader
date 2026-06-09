@@ -4,6 +4,10 @@
 
 - Clickable topic tags in the article reader: category chips on the article detail screen are now tappable when the category maps to a known topic bucket. Tapping a chip sets a topic filter on the feed, pops back to the feed list, and shows a dismissible filter chip so the user can clear it. Categories with no known bucket mapping render as non-interactive chips.
 
+## 0.1.1
+
+- Clickable section headers in grouped views (By Topic / By Source): tapping a header now instantly collapses or expands that section. A chevron icon (right when collapsed, down when expanded) shows the current state. The scroll-collapse behavior from pinned headers is unchanged.
+
 ## 0.0.10
 
 - Article grouping & sorting: new Sort/Group button in the feed toolbar lets you switch between three modes:

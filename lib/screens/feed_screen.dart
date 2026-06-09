@@ -21,6 +21,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _scrollController = ScrollController();
   bool _isSearching = false;
   List<Article>? _searchResults;
+  final Set<String> _collapsedSections = {};
 
   @override
   void initState() {
@@ -430,16 +431,27 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               title: entry.key,
               count: entry.value.length,
               theme: theme,
+              isCollapsed: _collapsedSections.contains(entry.key),
+              onTap: () {
+                setState(() {
+                  if (_collapsedSections.contains(entry.key)) {
+                    _collapsedSections.remove(entry.key);
+                  } else {
+                    _collapsedSections.add(entry.key);
+                  }
+                });
+              },
             ),
           ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _buildDismissibleCard(
-                  entry.value[index], bookmarkedIds, bookmarksNotifier,
-                  articleState, theme),
-              childCount: entry.value.length,
+          if (!_collapsedSections.contains(entry.key))
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildDismissibleCard(
+                    entry.value[index], bookmarkedIds, bookmarksNotifier,
+                    articleState, theme),
+                childCount: entry.value.length,
+              ),
             ),
-          ),
         ],
         const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
       ],
@@ -591,11 +603,15 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String title;
   final int count;
   final ThemeData theme;
+  final bool isCollapsed;
+  final VoidCallback onTap;
 
   const _SectionHeaderDelegate({
     required this.title,
     required this.count,
     required this.theme,
+    required this.isCollapsed,
+    required this.onTap,
   });
 
   @override
@@ -607,32 +623,41 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: theme.colorScheme.surfaceContainerHighest,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: theme.colorScheme.surfaceContainerHighest,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const Spacer(),
-          Text(
-            '$count',
-            style: theme.textTheme.labelSmall?.copyWith(
+            const Spacer(),
+            Text(
+              '$count',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              isCollapsed ? Icons.chevron_right : Icons.expand_more,
+              size: 18,
               color: theme.colorScheme.onSurfaceVariant,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   @override
   bool shouldRebuild(_SectionHeaderDelegate old) =>
-      title != old.title || count != old.count;
+      title != old.title || count != old.count || isCollapsed != old.isCollapsed;
 }
