@@ -41,6 +41,9 @@ dependencies:
   # RSS/Atom feed parsing
   webfeed: 0.7.0
 
+  # HTML parsing for feed autodiscovery (already transitive via flutter_html)
+  html: 0.15.6
+
   # State management
   flutter_riverpod: 2.6.1
 

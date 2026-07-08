@@ -5,6 +5,7 @@ import '../models/feed_config.dart';
 import '../providers/theme_provider.dart';
 import '../providers/feed_provider.dart';
 import '../services/news_sources/rss_news_source.dart';
+import 'feed_discovery_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -94,6 +95,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     style: theme.textTheme.titleSmall?.copyWith(
                         color: theme.colorScheme.primary)),
                 const Spacer(),
+                TextButton.icon(
+                  icon: const Icon(Icons.travel_explore, size: 18),
+                  label: const Text('Discover'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const FeedDiscoveryScreen(),
+                    ),
+                  ),
+                ),
                 TextButton.icon(
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Feed'),
