@@ -4,6 +4,8 @@ import '../models/app_settings.dart';
 import '../models/feed_config.dart';
 import '../providers/theme_provider.dart';
 import '../providers/feed_provider.dart';
+import '../providers/repositories_provider.dart';
+import '../providers/vault_provider.dart';
 import '../services/news_sources/rss_news_source.dart';
 import 'feed_discovery_screen.dart';
 
@@ -16,6 +18,16 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final Map<String, _FeedTestResult> _feedTestResults = {};
+
+  /// Null while the keystore read is in flight. The token itself is never held
+  /// here - only whether one exists.
+  bool? _tokenPresent;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTokenPresence();
+  }
 
   Future<void> _testFeed(FeedConfig feed) async {
     setState(() {
@@ -86,6 +98,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const Divider(),
 
+          // Vault sync section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Vault Sync',
+                style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary)),
+          ),
+          ..._buildVaultSection(theme),
+
+          const Divider(),
+
           // Feeds section
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -122,6 +145,143 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildVaultSection(ThemeData theme) {
+    final settingsRepo = ref.watch(settingsRepositoryProvider);
+    final settings = settingsRepo.settings;
+    final sync = ref.watch(vaultSyncProvider);
+
+    return [
+      SwitchListTile(
+        title: const Text('Save bookmarks to vault'),
+        subtitle: const Text(
+            'Bookmarked articles are also filed in mcp-vault, where they are '
+            'summarised and tagged. Removing a bookmark leaves the vault copy.'),
+        value: settings.vaultSyncEnabled,
+        onChanged: (enabled) async {
+          await settingsRepo.setVaultSyncEnabled(enabled);
+          if (!mounted) return;
+          setState(() {});
+          if (enabled) ref.read(vaultSyncProvider.notifier).drain();
+        },
+      ),
+      if (settings.vaultSyncEnabled) ...[
+        ListTile(
+          title: const Text('Bearer token'),
+          subtitle: Text(_tokenPresent == null
+              ? 'Checking…'
+              : _tokenPresent!
+                  ? 'Stored securely on this device'
+                  : 'Not set — bookmarks cannot be sent'),
+          trailing: const Icon(Icons.edit, size: 18),
+          onTap: _showTokenDialog,
+        ),
+        ListTile(
+          title: const Text('Server URL'),
+          subtitle: Text(settings.vaultServerUrl),
+          trailing: const Icon(Icons.edit, size: 18),
+          onTap: () => _showServerUrlDialog(settingsRepo.settings.vaultServerUrl),
+        ),
+        ListTile(
+          title: const Text('Pending'),
+          subtitle: Text(sync.lastError != null
+              ? 'Last error: ${sync.lastError}'
+              : sync.pending == 0
+                  ? 'Everything sent'
+                  : '${sync.pending} waiting to send'),
+          trailing: sync.isSyncing
+              ? const SizedBox(
+                  width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : TextButton(
+                  onPressed: sync.pending == 0
+                      ? null
+                      : () => ref.read(vaultSyncProvider.notifier).drain(),
+                  child: const Text('Sync now'),
+                ),
+        ),
+      ],
+    ];
+  }
+
+  Future<void> _showTokenDialog() async {
+    final controller = TextEditingController();
+    final store = ref.read(vaultTokenStoreProvider);
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('mcp-vault bearer token'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Paste token',
+            helperText: 'Stored in the device keystore, never in plain text.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await store.delete();
+              if (context.mounted) Navigator.pop(context, true);
+            },
+            child: const Text('Clear'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true && controller.text.trim().isNotEmpty) {
+      await store.write(controller.text.trim());
+    }
+    await _refreshTokenPresence();
+    if (mounted) ref.read(vaultSyncProvider.notifier).drain();
+  }
+
+  Future<void> _showServerUrlDialog(String current) async {
+    final controller = TextEditingController(text: current);
+    final settingsRepo = ref.read(settingsRepositoryProvider);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Server URL'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(hintText: 'https://…/mcp'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save')),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      await settingsRepo.setVaultServerUrl(controller.text);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _refreshTokenPresence() async {
+    final token = await ref.read(vaultTokenStoreProvider).read();
+    if (mounted) setState(() => _tokenPresent = token != null);
   }
 
   Widget _buildFeedTile(

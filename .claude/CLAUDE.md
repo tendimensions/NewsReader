@@ -49,6 +49,24 @@ Task-specific guidance for common workflows:
 - **Offline cache**: Headlines + summaries cached for offline browsing
 - **Settings**: Theme preference, feed configuration (enabled/disabled feeds, custom feed URLs)
 
+### Vault Sync
+
+Bookmarking an article also files it in [mcp-vault](https://mcp.tendimensions.com) via the
+server's `save_bookmark` tool, which fetches/enriches and writes a tagged document. Off by
+default; enable it and set a bearer token under Settings → Vault Sync.
+
+- **The article's own text and feed categories are sent**, so the server skips its fetch —
+  better input than scraping, and immune to the paywalls and 404s that otherwise produce
+  `fetch_failed` bookmarks.
+- **An outbox (`vault_outbox` box) queues saves**, so bookmarking works offline. It drains on
+  the next successful send; entries are dropped after 5 failed attempts.
+- **Removing a bookmark does not delete the vault document.** The Hive bookmark is a reading
+  queue; the vault copy is long-term memory. Different lifetimes, deliberately.
+- **The token lives in platform secure storage**, never in Hive. Use a `BOOKMARK_TOKENS`-scoped
+  token, which can only call `save_bookmark`.
+- The same tool backs the CustomAddBookmark browser extension, so both clients write
+  identically shaped documents.
+
 ### Not in Initial Release
 - Push notifications
 - NewsAPI.org integration (code exists in [lib/services/news_sources/news_api_source.dart](../lib/services/news_sources/news_api_source.dart), just not active)
@@ -79,25 +97,31 @@ lib/
 │   ├── feed_config.dart                   # RSS feed config model (Hive typeId: 1)
 │   ├── feed_config.g.dart                 # Generated Hive adapter
 │   ├── app_settings.dart                  # ThemePreference enum + AppSettings (Hive typeId: 2,3)
-│   └── app_settings.g.dart               # Generated Hive adapter
+│   ├── app_settings.g.dart               # Generated Hive adapter
+│   ├── vault_sync_entry.dart              # Outbox entry for vault push (Hive typeId: 4)
+│   └── vault_sync_entry.g.dart            # Generated Hive adapter
 ├── providers/
 │   ├── repositories_provider.dart         # Singleton repo providers (overridden in main)
 │   ├── theme_provider.dart                # ThemeMode StateNotifier
 │   ├── feed_provider.dart                 # Feed configs, aggregator, articles AsyncNotifier
 │   ├── bookmarks_provider.dart            # Bookmarks StateNotifier
-│   └── article_state_provider.dart        # Read/unread + deleted article tracking
+│   ├── article_state_provider.dart        # Read/unread + deleted article tracking
+│   └── vault_provider.dart                # Pushes bookmarks to mcp-vault via an outbox
 ├── repositories/
 │   ├── feed_config_repository.dart        # Hive-backed feed config CRUD + defaults
 │   ├── bookmarks_repository.dart          # Hive-backed bookmark storage
 │   ├── article_cache_repository.dart      # Hive-backed offline cache (max 200 articles)
 │   ├── settings_repository.dart           # Hive-backed app settings
-│   └── article_state_repository.dart      # Hive-backed read/deleted article IDs
+│   ├── article_state_repository.dart      # Hive-backed read/deleted article IDs
+│   ├── vault_outbox_repository.dart       # Hive-backed queue of pending vault pushes
+│   └── vault_token_store.dart             # Bearer token in platform secure storage
 ├── screens/
 │   ├── feed_screen.dart                   # Main reverse-chron feed + search + bookmarks sheet
 │   ├── article_screen.dart                # Reader mode article view (HTML rendering, selectable text)
 │   └── settings_screen.dart               # Theme toggle, feed management, add custom feeds
 ├── services/
 │   ├── news_aggregator_service.dart       # Aggregator with deduplication strategies
+│   ├── vault_client.dart                  # Minimal MCP Streamable HTTP client
 │   └── news_sources/
 │       ├── i_news_source.dart             # INewsSource interface
 │       ├── news_api_source.dart           # NewsAPI.org implementation (future)

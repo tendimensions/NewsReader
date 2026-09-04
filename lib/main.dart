@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models/article.dart';
 import 'models/feed_config.dart';
 import 'models/app_settings.dart';
+import 'models/vault_sync_entry.dart';
 import 'providers/repositories_provider.dart';
 import 'providers/theme_provider.dart';
 import 'repositories/feed_config_repository.dart';
@@ -15,6 +16,7 @@ import 'repositories/bookmarks_repository.dart';
 import 'repositories/article_cache_repository.dart';
 import 'repositories/settings_repository.dart';
 import 'repositories/article_state_repository.dart';
+import 'repositories/vault_outbox_repository.dart';
 import 'screens/feed_screen.dart';
 
 void main() {
@@ -56,12 +58,14 @@ Future<void> _initializeAndRun() async {
   if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(FeedConfigAdapter());
   if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(ThemePreferenceAdapter());
   if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(AppSettingsAdapter());
+  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(VaultSyncEntryAdapter());
 
   final feedConfigRepo = FeedConfigRepository();
   final bookmarksRepo = BookmarksRepository();
   final articleCacheRepo = ArticleCacheRepository();
   final settingsRepo = SettingsRepository();
   final articleStateRepo = ArticleStateRepository();
+  final vaultOutboxRepo = VaultOutboxRepository();
 
   // Open each Hive box individually. If a specific box is corrupted (e.g.
   // after a schema change), only that box is wiped and recreated — user data
@@ -71,6 +75,7 @@ Future<void> _initializeAndRun() async {
   await _tryInit(articleCacheRepo.init, ['article_cache']);
   await _tryInit(settingsRepo.init, ['settings']);
   await _tryInit(articleStateRepo.init, ['read_articles', 'deleted_articles']);
+  await _tryInit(vaultOutboxRepo.init, ['vault_outbox']);
 
   runApp(
     ProviderScope(
@@ -80,6 +85,7 @@ Future<void> _initializeAndRun() async {
         articleCacheRepositoryProvider.overrideWithValue(articleCacheRepo),
         settingsRepositoryProvider.overrideWithValue(settingsRepo),
         articleStateRepositoryProvider.overrideWithValue(articleStateRepo),
+        vaultOutboxRepositoryProvider.overrideWithValue(vaultOutboxRepo),
       ],
       child: const NewsReaderApp(),
     ),

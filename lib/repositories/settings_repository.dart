@@ -22,4 +22,17 @@ class SettingsRepository {
     s.themePreference = pref;
     await _box.put(_settingsKey, s);
   }
+
+  Future<void> setVaultSyncEnabled(bool enabled) async {
+    final s = settings;
+    s.vaultSyncEnabled = enabled;
+    await _box.put(_settingsKey, s);
+  }
+
+  Future<void> setVaultServerUrl(String url) async {
+    final s = settings;
+    s.vaultServerUrl =
+        url.trim().isEmpty ? AppSettings.defaultVaultServerUrl : url.trim();
+    await _box.put(_settingsKey, s);
+  }
 }

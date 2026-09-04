@@ -4,6 +4,7 @@ import '../repositories/bookmarks_repository.dart';
 import '../repositories/article_cache_repository.dart';
 import '../repositories/settings_repository.dart';
 import '../repositories/article_state_repository.dart';
+import '../repositories/vault_outbox_repository.dart';
 
 /// Singleton repository providers — initialized at app startup
 
@@ -24,5 +25,9 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
 });
 
 final articleStateRepositoryProvider = Provider<ArticleStateRepository>((ref) {
+  throw UnimplementedError('Must be overridden in ProviderScope');
+});
+
+final vaultOutboxRepositoryProvider = Provider<VaultOutboxRepository>((ref) {
   throw UnimplementedError('Must be overridden in ProviderScope');
 });
