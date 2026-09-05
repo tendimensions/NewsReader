@@ -24,17 +24,16 @@ workflows:
       xcode: latest
       cocoapods: default
 
+    # Releases are cut by pushing a version tag, not by pushing to a branch:
+    #   git tag v0.2.0 && git push origin v0.2.0
+    # Ordinary pushes and PRs to main build nothing. A tag is an immutable marker
+    # of exactly what shipped, and it pairs with the version in pubspec.yaml.
     triggering:
       events:
-        - push
-        - pull_request
-      branch_patterns:
-        - pattern: 'main'
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
           include: true
-          source: true
-        - pattern: 'develop'
-          include: true
-          source: true
 
     scripts:
       - name: Set up local.properties
@@ -130,17 +129,16 @@ workflows:
       flutter: stable
       java: 17
     
+    # Releases are cut by pushing a version tag, not by pushing to a branch:
+    #   git tag v0.2.0 && git push origin v0.2.0
+    # Ordinary pushes and PRs to main build nothing. A tag is an immutable marker
+    # of exactly what shipped, and it pairs with the version in pubspec.yaml.
     triggering:
       events:
-        - push
-        - pull_request
-      branch_patterns:
-        - pattern: 'main'
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
           include: true
-          source: true
-        - pattern: 'develop'
-          include: true
-          source: true
     
     scripts:
       - name: Set up local.properties
@@ -226,14 +224,9 @@ workflows:
       xcode: latest
       cocoapods: default
 
-    triggering:
-      events:
-        - push
-        - pull_request
-      branch_patterns:
-        - pattern: '*'
-          include: true
-          source: true
+    # Deliberately has no `triggering:` block. With one, every push to every
+    # branch would build both platforms. Run it on demand instead:
+    #   trigger-build.ps1 -Branch <branch> -Workflow dev-workflow
 
     scripts:
       - name: Set up local.properties
