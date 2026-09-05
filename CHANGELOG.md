@@ -1,8 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## 0.2.0
 
+- Bookmarks now also save to the MCP vault. Bookmarking an article files it via the server's `save_bookmark` tool, which summarises it, extracts key facts, and tags it. Off by default — enable it and set a bearer token under Settings → Vault Sync.
+- The article's own body text and feed categories are sent with the save, so the server skips its own page fetch. That works on articles behind paywalls or dead links, which would otherwise fail to enrich.
+- Saves are queued, so bookmarking works with no signal. The queue drains automatically when a send succeeds, and Settings shows how many are waiting.
+- Removing a bookmark leaves the vault document in place. The bookmark list is a reading queue; the vault copy is long-term memory.
+- The vault token is held in the device keystore (iOS Keychain / Android EncryptedSharedPreferences), never in plain storage.
+- RSS feed discovery by URL: paste a site address in Settings and the app finds its feeds.
 - Clickable topic tags in the article reader: category chips on the article detail screen are now tappable when the category maps to a known topic bucket. Tapping a chip sets a topic filter on the feed, pops back to the feed list, and shows a dismissible filter chip so the user can clear it. Categories with no known bucket mapping render as non-interactive chips.
+
+---
 
 ## 0.1.1
 
