@@ -2,7 +2,7 @@
 
 ## 0.2.1
 
-- Fixed the Android build, which had never succeeded on CI. Flutter's current stable requires Gradle 8.14.0 or newer and the wrapper was pinned to 8.12, so `flutter build apk` failed before compiling anything. Bumped to 8.14.5. iOS was unaffected.
+- Fixed the Android build, which had never succeeded on CI. Flutter's current stable enforces three toolchain floors the project sat below, each only surfacing once the previous one cleared: Gradle 8.12 to 8.14.5, Android Gradle Plugin 8.9.1 to 8.13.2, and Kotlin 2.1.0 to 2.2.21. `flutter build apk` failed before compiling anything. iOS was unaffected throughout.
 - A toast now confirms when a bookmark reaches the vault. The bookmark icon flipped immediately but the vault save takes several seconds, so there was no way to tell whether it landed. Success, "saved without enrichment", a queued retry, and a missing token each say so. The message shows over whichever screen you are on, since the save usually finishes after you have moved on from the article.
 
 ---
