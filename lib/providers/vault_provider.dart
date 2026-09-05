@@ -9,19 +9,47 @@ import '../repositories/vault_token_store.dart';
 import '../services/vault_client.dart';
 import 'repositories_provider.dart';
 
-/// Snapshot of the outbox, for the settings screen.
+/// The outcome of one attempted vault save, for user-facing feedback.
+///
+/// Deliberately has no `==` override: every outcome is a distinct instance, so
+/// `ref.listen` fires even when the same article fails the same way twice.
+class VaultSyncEvent {
+  final String title;
+  final String message;
+  final bool isError;
+
+  VaultSyncEvent({required this.title, required this.message, this.isError = false});
+}
+
+/// Snapshot of the outbox, for the settings screen and the sync toast.
 class VaultSyncState {
   final int pending;
   final bool isSyncing;
   final String? lastError;
 
-  const VaultSyncState({this.pending = 0, this.isSyncing = false, this.lastError});
+  /// Set once per completed save attempt, then left in place. Consumers watch
+  /// for a *new* instance rather than reading it as ongoing state.
+  final VaultSyncEvent? lastEvent;
 
-  VaultSyncState copyWith({int? pending, bool? isSyncing, String? lastError, bool clearError = false}) {
+  const VaultSyncState({
+    this.pending = 0,
+    this.isSyncing = false,
+    this.lastError,
+    this.lastEvent,
+  });
+
+  VaultSyncState copyWith({
+    int? pending,
+    bool? isSyncing,
+    String? lastError,
+    bool clearError = false,
+    VaultSyncEvent? lastEvent,
+  }) {
     return VaultSyncState(
       pending: pending ?? this.pending,
       isSyncing: isSyncing ?? this.isSyncing,
       lastError: clearError ? null : (lastError ?? this.lastError),
+      lastEvent: lastEvent ?? this.lastEvent,
     );
   }
 }
@@ -95,7 +123,14 @@ class VaultSyncNotifier extends StateNotifier<VaultSyncState> {
 
     final token = await _tokenStore.read();
     if (token == null) {
-      state = state.copyWith(lastError: 'No vault token configured');
+      state = state.copyWith(
+        lastError: 'No vault token configured',
+        lastEvent: VaultSyncEvent(
+          title: '',
+          message: 'Vault sync is on but no token is set',
+          isError: true,
+        ),
+      );
       return;
     }
 
@@ -110,20 +145,36 @@ class VaultSyncNotifier extends StateNotifier<VaultSyncState> {
         : VaultClient(serverUrl: _settings.settings.vaultServerUrl, token: token);
 
     String? lastError;
+    VaultSyncEvent? event;
     try {
       for (final entry in entries) {
         try {
-          await client.saveBookmark(
+          final result = await client.saveBookmark(
             url: entry.url,
             title: entry.title,
             text: entry.text,
             tags: entry.tags,
           );
           await _outbox.remove(entry.articleId);
+          event = VaultSyncEvent(
+            title: entry.title,
+            message: result.isProcessed
+                ? 'Saved to vault'
+                // The document was written, but the server could not summarise
+                // or tag it. Saying "saved" would overstate what is there.
+                : 'Saved to vault without enrichment',
+          );
         } on VaultException catch (e) {
           lastError = e.message;
           final dropped = await _outbox.recordFailure(entry.articleId, e.message);
           debugPrint('[vault] ${entry.title}: ${e.message}${dropped ? ' (giving up)' : ''}');
+          event = VaultSyncEvent(
+            title: entry.title,
+            message: dropped
+                ? 'Vault save failed - giving up after ${VaultOutboxRepository.maxAttempts} tries'
+                : 'Vault save failed - queued to retry',
+            isError: true,
+          );
           // Stop on the first failure: these are nearly always shared causes -
           // no network, a dead token - and hammering the rest just burns
           // attempts on entries that would have succeeded later.
@@ -138,6 +189,7 @@ class VaultSyncNotifier extends StateNotifier<VaultSyncState> {
         isSyncing: false,
         lastError: lastError,
         clearError: lastError == null,
+        lastEvent: event,
       );
     }
   }

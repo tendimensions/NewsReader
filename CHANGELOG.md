@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- A toast now confirms when a bookmark reaches the vault. The bookmark icon flipped immediately but the vault save takes several seconds, so there was no way to tell whether it landed. Success, "saved without enrichment", a queued retry, and a missing token each say so. The message shows over whichever screen you are on, since the save usually finishes after you have moved on from the article.
+
+---
+
 ## 0.2.0
 
 - Bookmarks now also save to the MCP vault. Bookmarking an article files it via the server's `save_bookmark` tool, which summarises it, extracts key facts, and tags it. Off by default — enable it and set a bearer token under Settings → Vault Sync.

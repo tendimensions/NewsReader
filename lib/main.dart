@@ -11,6 +11,7 @@ import 'models/app_settings.dart';
 import 'models/vault_sync_entry.dart';
 import 'providers/repositories_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/vault_provider.dart';
 import 'repositories/feed_config_repository.dart';
 import 'repositories/bookmarks_repository.dart';
 import 'repositories/article_cache_repository.dart';
@@ -175,6 +176,12 @@ class _InitErrorApp extends StatelessWidget {
 // Main application widget
 // ---------------------------------------------------------------------------
 
+/// Lets the vault-sync toast be shown from outside any particular screen's
+/// context. A save takes seconds and finishes long after the user has moved on,
+/// so the confirmation has to survive navigating from the article back to the
+/// feed - a per-screen ScaffoldMessenger would not.
+final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 class NewsReaderApp extends ConsumerWidget {
   const NewsReaderApp({super.key});
 
@@ -182,9 +189,32 @@ class NewsReaderApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
 
+    // Bookmarking flips the icon immediately, but the vault save is a network
+    // round trip plus an LLM call. Without this the user has no idea whether it
+    // landed, or whether it is sitting in the outbox waiting for signal.
+    ref.listen<VaultSyncState>(vaultSyncProvider, (previous, next) {
+      final event = next.lastEvent;
+      if (event == null || identical(event, previous?.lastEvent)) return;
+
+      scaffoldMessengerKey.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              event.title.isEmpty ? event.message : '${event.message}: ${event.title}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            duration: Duration(seconds: event.isError ? 5 : 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    });
+
     return MaterialApp(
       title: 'Ten Dimensional News Reader',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       themeMode: themeMode,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

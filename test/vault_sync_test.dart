@@ -200,6 +200,72 @@ void main() {
     });
   });
 
+  group('sync events for the toast', () {
+    test('a successful save emits a success event naming the article', () async {
+      final notifier = notifierWith(_RecordingClient());
+      await notifier.enqueue(_article('a1'));
+
+      final event = notifier.state.lastEvent!;
+      expect(event.isError, isFalse);
+      expect(event.message, 'Saved to vault');
+      expect(event.title, 'Article a1');
+    });
+
+    test('a failed save emits an error event saying it is queued', () async {
+      final notifier = notifierWith(_RecordingClient(failWith: 'no network'));
+      await notifier.enqueue(_article('a1'));
+
+      final event = notifier.state.lastEvent!;
+      expect(event.isError, isTrue);
+      expect(event.message, contains('queued to retry'));
+    });
+
+    test('the final failure says it gave up rather than queued', () async {
+      final notifier = notifierWith(_RecordingClient(failWith: 'no network'));
+      await notifier.enqueue(_article('a1'));
+      // Retries come from draining, not from re-queuing - see the test below.
+      for (var i = 1; i < VaultOutboxRepository.maxAttempts; i++) {
+        await notifier.drain();
+      }
+
+      expect(notifier.state.lastEvent!.message, contains('giving up'));
+      expect(outbox.pendingCount, 0);
+    });
+
+    test('re-bookmarking a failing article resets its retry budget', () async {
+      // enqueue replaces the outbox entry, which is keyed by article id, so the
+      // attempt count starts over. Deliberate: a fresh user action deserves a
+      // fresh set of tries. It does mean maxAttempts is only ever reached by
+      // repeated drains, never by repeated bookmarking.
+      final notifier = notifierWith(_RecordingClient(failWith: 'no network'));
+      await notifier.enqueue(_article('a1'));
+      await notifier.drain();
+      expect(outbox.getAll().single.attempts, 2);
+
+      await notifier.enqueue(_article('a1'));
+      expect(outbox.getAll().single.attempts, 1);
+    });
+
+    test('a missing token emits an event rather than failing silently', () async {
+      final notifier = notifierWith(_RecordingClient(), token: null);
+      await notifier.enqueue(_article('a1'));
+
+      expect(notifier.state.lastEvent!.isError, isTrue);
+      expect(notifier.state.lastEvent!.message, contains('no token'));
+    });
+
+    test('each save produces a distinct event instance so repeats still fire', () async {
+      final notifier = notifierWith(_RecordingClient());
+      await notifier.enqueue(_article('a1'));
+      final first = notifier.state.lastEvent;
+      await notifier.enqueue(_article('a2'));
+      final second = notifier.state.lastEvent;
+
+      expect(identical(first, second), isFalse,
+          reason: 'ref.listen compares instances; a reused object would not fire');
+    });
+  });
+
   group('bookmark lifecycle', () {
     test('bookmarking notifies, un-bookmarking does not', () async {
       final added = <String>[];
