@@ -25,7 +25,10 @@ workflows:
       # no change to this repo - which is exactly what happened on 2026-09-05.
       # Upgrade deliberately: bump this, run a build, fix what it surfaces.
       flutter: 3.47.2
-      xcode: latest
+      # Pinned for the same reason as flutter above. An Xcode major can drop
+      # deployment targets and change signing behaviour, which would break iOS
+      # releases with no change to this repo.
+      xcode: 26.4
       cocoapods: default
 
     # Releases are cut by pushing a version tag, not by pushing to a branch:
@@ -233,7 +236,10 @@ workflows:
       # no change to this repo - which is exactly what happened on 2026-09-05.
       # Upgrade deliberately: bump this, run a build, fix what it surfaces.
       flutter: 3.47.2
-      xcode: latest
+      # Pinned for the same reason as flutter above. An Xcode major can drop
+      # deployment targets and change signing behaviour, which would break iOS
+      # releases with no change to this repo.
+      xcode: 26.4
       cocoapods: default
 
     # Deliberately has no `triggering:` block. With one, every push to every
