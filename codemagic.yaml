@@ -20,7 +20,11 @@ workflows:
         # APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
         # APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
 
-      flutter: stable
+      # Pinned, not `stable`. Flutter's stable channel enforces minimum Gradle,
+      # AGP and Kotlin versions, and raising them breaks the Android build with
+      # no change to this repo - which is exactly what happened on 2026-09-05.
+      # Upgrade deliberately: bump this, run a build, fix what it surfaces.
+      flutter: 3.47.2
       xcode: latest
       cocoapods: default
 
@@ -126,7 +130,11 @@ workflows:
         # NewsAPI.org API Key - set in CodeMagic UI as secure environment variable
         # NEWS_API_KEY: $NEWS_API_KEY
         
-      flutter: stable
+      # Pinned, not `stable`. Flutter's stable channel enforces minimum Gradle,
+      # AGP and Kotlin versions, and raising them breaks the Android build with
+      # no change to this repo - which is exactly what happened on 2026-09-05.
+      # Upgrade deliberately: bump this, run a build, fix what it surfaces.
+      flutter: 3.47.2
       java: 17
     
     # Releases are cut by pushing a version tag, not by pushing to a branch:
@@ -220,7 +228,11 @@ workflows:
         distribution_type: ad_hoc
         bundle_identifier: com.tendimensions.newsreader
 
-      flutter: stable
+      # Pinned, not `stable`. Flutter's stable channel enforces minimum Gradle,
+      # AGP and Kotlin versions, and raising them breaks the Android build with
+      # no change to this repo - which is exactly what happened on 2026-09-05.
+      # Upgrade deliberately: bump this, run a build, fix what it surfaces.
+      flutter: 3.47.2
       xcode: latest
       cocoapods: default
 
