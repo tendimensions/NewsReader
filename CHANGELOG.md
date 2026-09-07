@@ -1,9 +1,15 @@
 # Changelog
 
+## 0.2.2
+
+- First release built for Android. The Android build had never succeeded on CI: Flutter's stable enforces toolchain floors the project sat below, each surfacing only once the previous one cleared - Gradle 8.12 to 8.14.5, Android Gradle Plugin 8.9.1 to 8.13.2, Kotlin 2.1.0 to 2.2.21. `flutter build apk` failed before compiling anything. iOS was unaffected throughout, which is why it went unnoticed.
+- Pinned the CI toolchain: Flutter 3.47.2 on all three workflows, Xcode 26.4 on the two iOS ones. They were `stable` and `latest`, which is what let those floors move underneath the project with no change to the app. Upgrades are now deliberate - bump the pin, build, fix what surfaces.
+- No app code changed in this release.
+
+---
+
 ## 0.2.1
 
-- Fixed the Android build, which had never succeeded on CI. Flutter's current stable enforces three toolchain floors the project sat below, each only surfacing once the previous one cleared: Gradle 8.12 to 8.14.5, Android Gradle Plugin 8.9.1 to 8.13.2, and Kotlin 2.1.0 to 2.2.21. `flutter build apk` failed before compiling anything. iOS was unaffected throughout.
-- Pinned the CI Flutter version to 3.47.2 across all three workflows, and Xcode to 26.4 on the two iOS ones. It was `stable`, which is what let the Android toolchain floors move underneath the project without a single line of app code changing. Upgrades are now deliberate: bump the pin, build, fix what surfaces.
 - A toast now confirms when a bookmark reaches the vault. The bookmark icon flipped immediately but the vault save takes several seconds, so there was no way to tell whether it landed. Success, "saved without enrichment", a queued retry, and a missing token each say so. The message shows over whichever screen you are on, since the save usually finishes after you have moved on from the article.
 
 ---
