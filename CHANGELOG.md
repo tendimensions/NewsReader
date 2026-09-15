@@ -2,6 +2,7 @@
 
 ## 0.3.0
 
+- Fixed Atom feeds silently returning zero articles whenever an entry had a `<published>` tag (most do). Two bugs compounded: `webfeed` returns `AtomItem.published` as a raw unparsed string (unlike `.updated`, which it does parse), so assigning it to `Article.publishedAt` threw a `TypeError` for every entry; and a `.firstOrNull` call elsewhere in the same parser resolved to a `NoSuchMethodError` at runtime despite analyzing cleanly, because nothing in the file actually imported the extension providing it. Both exceptions were swallowed by a bare `catch { continue; }`, so the feed fetch reported success with zero articles instead of an error - it looked like a healthy feed with no content, not a bug.
 - Filtering to a single feed — from Settings, or the new "Filter by feed" option in Group & Sort — now fetches that feed directly instead of searching the already-merged article list. The combined feed only keeps the top 50 most recent articles across every enabled source; an infrequently-updated feed's posts could get sorted out of that window entirely by busier feeds, so filtering down to it returned nothing even though the feed itself was healthy.
 - Added a "Load 50 more" control at the bottom of the article list, so articles beyond the initial fetch are reachable instead of a fixed cutoff.
 - Added `trigger-build.sh` / `check-build.sh`, bash counterparts to the existing PowerShell CodeMagic scripts, for triggering and polling builds outside Windows.
