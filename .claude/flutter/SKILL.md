@@ -53,6 +53,15 @@ Release notes are extracted from [`CHANGELOG.md`](../../CHANGELOG.md) — conten
 
 See [`CODEMAGIC_SETUP.md`](../../CODEMAGIC_SETUP.md) for full CI/CD configuration instructions.
 
+### Triggering a build manually
+
+```bash
+./trigger-build.sh -Branch main [-Workflow ios-workflow|android-workflow|dev-workflow]
+./check-build.sh -BuildId <id> [-Wait]
+```
+
+(`.ps1` equivalents exist for Windows.) `ApiKey`/`AppId` come from a local `app.info` file (gitignored) unless passed as `-ApiKey`/`-AppId`. Before hitting the API, `trigger-build` refuses to run unless the working tree is clean and pushed (local `HEAD` == `origin/<Branch>`) and `CHANGELOG.md`'s latest entry matches `pubspec.yaml`'s version with real notes under it — CodeMagic builds the remote branch, not your working tree, and its "Create release notes" step pulls straight from `CHANGELOG.md`, so either drifting silently ships a stale build. Bypass per-run with `-SkipGitCheck` / `-SkipChangelogCheck` when you genuinely mean to (e.g. rebuilding an already-released commit).
+
 ## State Management Patterns
 
 This project uses **Riverpod**. Key rules:

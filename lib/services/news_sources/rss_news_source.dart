@@ -211,7 +211,8 @@ class RssNewsSource implements INewsSource {
 
     for (final entry in feed.items ?? []) {
       try {
-        final url = entry.links?.firstOrNull?.href;
+        final links = entry.links;
+        final url = (links != null && links.isNotEmpty) ? links.first.href : null;
         final title = entry.title;
 
         if (url == null || title == null) {
@@ -220,7 +221,14 @@ class RssNewsSource implements INewsSource {
         }
 
         final id = Uri.parse(url).host + url.hashCode.toString();
-        final publishedAt = entry.published ?? entry.updated ?? DateTime.now();
+        // AtomItem.published is the raw unparsed <published> text (String?),
+        // unlike .updated which webfeed already parses to DateTime? — so it
+        // must be parsed explicitly, or every entry with a <published> tag
+        // throws a TypeError at the Article(publishedAt:) assignment below
+        // and gets silently dropped by the catch clause further down.
+        final publishedAt = DateTime.tryParse(entry.published ?? '') ??
+            entry.updated ??
+            DateTime.now();
 
         final rawSummary = entry.summary;
         articles.add(Article(
@@ -232,11 +240,13 @@ class RssNewsSource implements INewsSource {
           imageUrl: _extractAtomImageUrl(entry),
           publishedAt: publishedAt,
           sourceName: feedTitle,
-          author: entry.authors?.firstOrNull?.name,
+          author: (entry.authors != null && entry.authors!.isNotEmpty)
+              ? entry.authors!.first.name
+              : null,
           categories: entry.categories?.map((c) => c.term ?? '').toList().cast<String>() ?? <String>[],
         ));
       } catch (e) {
-        // Skip malformed items
+        debugPrint('[RssNewsSource] Error parsing Atom entry: $e');
         continue;
       }
     }
