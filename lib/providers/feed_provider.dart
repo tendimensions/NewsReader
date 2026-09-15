@@ -11,16 +11,16 @@ import 'repositories_provider.dart';
 /// Provides the list of feed configurations
 final feedConfigsProvider =
     StateNotifierProvider<FeedConfigNotifier, List<FeedConfig>>((ref) {
-  final repo = ref.watch(feedConfigRepositoryProvider);
-  return FeedConfigNotifier(repo);
-});
+      final repo = ref.watch(feedConfigRepositoryProvider);
+      return FeedConfigNotifier(repo);
+    });
 
 class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
   final FeedConfigRepository _repo;
 
   FeedConfigNotifier(FeedConfigRepository repo)
-      : _repo = repo,
-        super(repo.getAll());
+    : _repo = repo,
+      super(repo.getAll());
 
   Future<void> addFeed(String url, String name, {int articleLimit = 5}) async {
     final feed = FeedConfig(url: url, name: name, articleLimit: articleLimit);
@@ -34,7 +34,11 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
   }
 
   Future<void> updateFeed(
-      String oldUrl, String newUrl, String newName, int articleLimit) async {
+    String oldUrl,
+    String newUrl,
+    String newName,
+    int articleLimit,
+  ) async {
     await _repo.updateFeed(oldUrl, newUrl, newName, articleLimit);
     state = _repo.getAll();
   }
@@ -54,7 +58,9 @@ class FeedConfigNotifier extends StateNotifier<List<FeedConfig>> {
 final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
   final configs = ref.watch(feedConfigsProvider);
   final enabledConfigs = configs.where((c) => c.enabled).toList();
-  debugPrint('[FeedProvider] Building aggregator: ${enabledConfigs.length} enabled feeds');
+  debugPrint(
+    '[FeedProvider] Building aggregator: ${enabledConfigs.length} enabled feeds',
+  );
 
   if (enabledConfigs.isEmpty) {
     debugPrint('[FeedProvider] No enabled feeds!');
@@ -84,6 +90,32 @@ final newsAggregatorProvider = Provider<NewsAggregatorService>((ref) {
 /// Active feed filter — when set, FeedScreen shows only articles from this feed name
 final feedFilterProvider = StateProvider<String?>((ref) => null);
 
+/// Fetches articles directly from a single named feed, bypassing the combined
+/// pool's top-N cutoff in [ArticlesNotifier]. Without this, an infrequently
+/// updated feed's articles can be sorted out of the merged top-50 by busier
+/// feeds and never appear even when the user filters down to just that feed.
+final singleFeedArticlesProvider = FutureProvider.family<List<Article>, String>(
+  (ref, feedName) async {
+    final configs = ref.watch(feedConfigsProvider);
+    FeedConfig? config;
+    for (final c in configs) {
+      if (c.name == feedName) {
+        config = c;
+        break;
+      }
+    }
+    if (config == null) return const [];
+
+    final source = RssNewsSource(
+      feedUrls: [config.url],
+      displayName: config.name,
+    );
+    // Ignore the feed's configured articleLimit (meant to balance it against
+    // other feeds in the combined pool) — here it's the only feed being shown.
+    return source.fetchArticles(limit: 50);
+  },
+);
+
 /// Active topic filter — when set, FeedScreen shows only articles in this canonical topic bucket
 final topicFilterProvider = StateProvider<String?>((ref) => null);
 
@@ -91,17 +123,22 @@ enum ArticleGrouping { chronological, bySource, byTopic }
 
 /// Controls how articles are grouped/sorted in FeedScreen. Resets to
 /// chronological on app restart (not persisted).
-final articleGroupingProvider =
-    StateProvider<ArticleGrouping>((_) => ArticleGrouping.chronological);
+final articleGroupingProvider = StateProvider<ArticleGrouping>(
+  (_) => ArticleGrouping.chronological,
+);
 
 /// Fetches articles from the aggregator, filters deleted, caches for offline
-final articlesProvider =
-    AsyncNotifierProvider<ArticlesNotifier, List<Article>>(
-        ArticlesNotifier.new);
+final articlesProvider = AsyncNotifierProvider<ArticlesNotifier, List<Article>>(
+  ArticlesNotifier.new,
+);
 
 class ArticlesNotifier extends AsyncNotifier<List<Article>> {
+  static const int _pageSize = 50;
+  int _limit = _pageSize;
+
   @override
   Future<List<Article>> build() async {
+    _limit = _pageSize;
     final aggregator = ref.watch(newsAggregatorProvider);
     final cacheRepo = ref.read(articleCacheRepositoryProvider);
 
@@ -110,15 +147,19 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
     ref.onDispose(() => cancelled = true);
 
     final cached = cacheRepo.getAll();
-    debugPrint('[ArticlesNotifier] build() called, returning ${cached.length} cached articles immediately');
+    debugPrint(
+      '[ArticlesNotifier] build() called, returning ${cached.length} cached articles immediately',
+    );
 
     // Fetch in the background; update state when done without blocking startup
     Future.microtask(() async {
       try {
         debugPrint('[ArticlesNotifier] Background fetch starting...');
-        final articles = await aggregator.fetchArticles(limit: 50);
+        final articles = await aggregator.fetchArticles(limit: _limit);
         if (cancelled) return;
-        debugPrint('[ArticlesNotifier] Background fetch complete: ${articles.length} articles');
+        debugPrint(
+          '[ArticlesNotifier] Background fetch complete: ${articles.length} articles',
+        );
         await cacheRepo.cacheArticles(articles);
         if (cancelled) return;
         final bookmarksRepo = ref.read(bookmarksRepositoryProvider);
@@ -145,11 +186,12 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
 
   Future<void> refresh() async {
     debugPrint('[ArticlesNotifier] refresh() called');
+    _limit = _pageSize;
     final aggregator = ref.read(newsAggregatorProvider);
     final cacheRepo = ref.read(articleCacheRepositoryProvider);
     state = const AsyncLoading();
     try {
-      final articles = await aggregator.fetchArticles(limit: 50);
+      final articles = await aggregator.fetchArticles(limit: _limit);
       await cacheRepo.cacheArticles(articles);
       final bookmarksRepo = ref.read(bookmarksRepositoryProvider);
       final liveIds = {
@@ -158,11 +200,48 @@ class ArticlesNotifier extends AsyncNotifier<List<Article>> {
       };
       await ref.read(articleStateProvider.notifier).pruneOrphans(liveIds);
       state = AsyncData(articles);
-      debugPrint('[ArticlesNotifier] refresh() done: ${articles.length} articles');
+      debugPrint(
+        '[ArticlesNotifier] refresh() done: ${articles.length} articles',
+      );
     } catch (e, stack) {
       debugPrint('[ArticlesNotifier] refresh() ERROR: $e');
       final cached = cacheRepo.getAll();
       state = cached.isNotEmpty ? AsyncData(cached) : AsyncError(e, stack);
+    }
+  }
+
+  /// Fetches another page from the combined pool. Returns false (and leaves
+  /// state untouched) once a larger limit stops yielding more articles —
+  /// the ceiling is the sum of each enabled feed's configured article limit,
+  /// so exhaustion is expected once that's reached rather than a bug.
+  Future<bool> loadMore() async {
+    debugPrint('[ArticlesNotifier] loadMore() called, current limit=$_limit');
+    final aggregator = ref.read(newsAggregatorProvider);
+    final cacheRepo = ref.read(articleCacheRepositoryProvider);
+    final current = state.value ?? const [];
+    final nextLimit = _limit + _pageSize;
+
+    try {
+      final articles = await aggregator.fetchArticles(limit: nextLimit);
+      final gotMore = articles.length > current.length;
+      if (gotMore) {
+        _limit = nextLimit;
+        await cacheRepo.cacheArticles(articles);
+        final bookmarksRepo = ref.read(bookmarksRepositoryProvider);
+        final liveIds = {
+          ...cacheRepo.getAll().map((a) => a.id),
+          ...bookmarksRepo.getAll().map((a) => a.id),
+        };
+        await ref.read(articleStateProvider.notifier).pruneOrphans(liveIds);
+        state = AsyncData(articles);
+      }
+      debugPrint(
+        '[ArticlesNotifier] loadMore() done: ${articles.length} articles, gotMore=$gotMore',
+      );
+      return gotMore;
+    } catch (e) {
+      debugPrint('[ArticlesNotifier] loadMore() ERROR: $e');
+      return false;
     }
   }
 

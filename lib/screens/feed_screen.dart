@@ -22,6 +22,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   bool _isSearching = false;
   List<Article>? _searchResults;
   final Set<String> _collapsedSections = {};
+  bool _isLoadingMore = false;
+  bool _hasMoreArticles = true;
 
   @override
   void initState() {
@@ -52,8 +54,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
     setState(() => _isSearching = true);
     try {
-      final results =
-          await ref.read(articlesProvider.notifier).search(query);
+      final results = await ref.read(articlesProvider.notifier).search(query);
       if (mounted) {
         setState(() {
           _searchResults = results;
@@ -63,21 +64,35 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSearching = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Search failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Search failed: $e')));
       }
     }
+  }
+
+  Future<void> _refreshArticles() async {
+    setState(() => _hasMoreArticles = true);
+    await ref.read(articlesProvider.notifier).refresh();
+  }
+
+  Future<void> _loadMoreArticles() async {
+    if (_isLoadingMore) return;
+    setState(() => _isLoadingMore = true);
+    final gotMore = await ref.read(articlesProvider.notifier).loadMore();
+    if (!mounted) return;
+    setState(() {
+      _isLoadingMore = false;
+      if (!gotMore) _hasMoreArticles = false;
+    });
   }
 
   void _openArticle(Article article) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ref.read(articleStateProvider.notifier).markRead(article.id);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ArticleScreen(article: article),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ArticleScreen(article: article)));
   }
 
   void _deleteArticle(Article article) {
@@ -127,28 +142,38 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
             const Divider(height: 1),
             RadioGroup<ArticleGrouping>(
-                  groupValue: current,
-                  onChanged: (value) {
-                    if (value != null) {
-                      ref.read(articleGroupingProvider.notifier).state = value;
-                    }
-                    Navigator.of(sheetContext).pop();
-                  },
-                  child: Column(
-                    children: ArticleGrouping.values.map((mode) {
-                      return ListTile(
-                        leading: Radio<ArticleGrouping>(value: mode),
-                        title: Text(_groupingLabel(mode)),
-                        subtitle: Text(_groupingDescription(mode)),
-                        onTap: () {
-                          ref.read(articleGroupingProvider.notifier).state =
-                              mode;
-                          Navigator.of(sheetContext).pop();
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
+              groupValue: current,
+              onChanged: (value) {
+                if (value != null) {
+                  ref.read(articleGroupingProvider.notifier).state = value;
+                }
+                Navigator.of(sheetContext).pop();
+              },
+              child: Column(
+                children: ArticleGrouping.values.map((mode) {
+                  return ListTile(
+                    leading: Radio<ArticleGrouping>(value: mode),
+                    title: Text(_groupingLabel(mode)),
+                    subtitle: Text(_groupingDescription(mode)),
+                    onTap: () {
+                      ref.read(articleGroupingProvider.notifier).state = mode;
+                      Navigator.of(sheetContext).pop();
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.rss_feed),
+              title: const Text('Filter by feed'),
+              subtitle: Text(ref.read(feedFilterProvider) ?? 'All feeds'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _showFeedFilterSheet(context);
+              },
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -156,23 +181,86 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
+  void _showFeedFilterSheet(BuildContext context) {
+    final feeds = ref.read(feedConfigsProvider).where((f) => f.enabled).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final current = ref.read(feedFilterProvider);
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Filter by Feed', style: theme.textTheme.titleMedium),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      current == null
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: current == null ? theme.colorScheme.primary : null,
+                    ),
+                    title: const Text('All feeds'),
+                    onTap: () {
+                      ref.read(feedFilterProvider.notifier).state = null;
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                  for (final feed in feeds)
+                    ListTile(
+                      leading: Icon(
+                        current == feed.name
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color: current == feed.name
+                            ? theme.colorScheme.primary
+                            : null,
+                      ),
+                      title: Text(feed.name),
+                      onTap: () {
+                        ref.read(feedFilterProvider.notifier).state = feed.name;
+                        Navigator.of(sheetContext).pop();
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _groupingLabel(ArticleGrouping mode) => switch (mode) {
-        ArticleGrouping.chronological => 'Chronological',
-        ArticleGrouping.bySource => 'By Source',
-        ArticleGrouping.byTopic => 'By Topic',
-      };
+    ArticleGrouping.chronological => 'Chronological',
+    ArticleGrouping.bySource => 'By Source',
+    ArticleGrouping.byTopic => 'By Topic',
+  };
 
   String _groupingDescription(ArticleGrouping mode) => switch (mode) {
-        ArticleGrouping.chronological => 'Newest articles first',
-        ArticleGrouping.bySource => 'Grouped by publication, alphabetically',
-        ArticleGrouping.byTopic => 'Grouped by topic category',
-      };
+    ArticleGrouping.chronological => 'Newest articles first',
+    ArticleGrouping.bySource => 'Grouped by publication, alphabetically',
+    ArticleGrouping.byTopic => 'Grouped by topic category',
+  };
 
   @override
   Widget build(BuildContext context) {
     final articlesAsync = ref.watch(articlesProvider);
-    final bookmarkedIds =
-        ref.watch(bookmarksProvider).map((a) => a.id).toSet();
+    final bookmarkedIds = ref.watch(bookmarksProvider).map((a) => a.id).toSet();
     final bookmarksNotifier = ref.read(bookmarksProvider.notifier);
     final articleState = ref.watch(articleStateProvider);
     final feedFilter = ref.watch(feedFilterProvider);
@@ -188,7 +276,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Fetch articles',
-            onPressed: () => ref.read(articlesProvider.notifier).refresh(),
+            onPressed: _refreshArticles,
           ),
           IconButton(
             icon: Icon(
@@ -206,9 +294,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
@@ -286,72 +374,87 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             child: _isSearching
                 ? const Center(child: CircularProgressIndicator())
                 : _searchResults != null
-                    // Search always shows flat chronological
-                    ? _buildArticleList(
-                        _searchResults!, bookmarkedIds, bookmarksNotifier,
-                        articleState, theme)
-                    : articlesAsync.when(
-                        data: (articles) {
-                          var visible = articles
-                              .where((a) =>
-                                  !articleState.deletedIds.contains(a.id))
-                              .toList();
-                          if (feedFilter != null) {
-                            visible = visible
-                                .where((a) => a.sourceName == feedFilter)
-                                .toList();
-                          }
-                          if (topicFilter != null) {
-                            visible = visible
-                                .where((a) =>
-                                    TopicClassifier.classify(a) == topicFilter)
-                                .toList();
-                          }
-                          return RefreshIndicator(
-                            onRefresh: () =>
-                                ref.read(articlesProvider.notifier).refresh(),
-                            child: _buildArticleList(
-                                visible, bookmarkedIds, bookmarksNotifier,
-                                articleState, theme,
-                                scrollController: _scrollController,
-                                grouping: grouping),
-                          );
-                        },
-                        loading: () => const Center(
-                            child: CircularProgressIndicator()),
-                        error: (err, _) => Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.cloud_off,
-                                    size: 48,
-                                    color: theme.colorScheme.error),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Could not load articles',
-                                  style: theme.textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '$err',
-                                  style: theme.textTheme.bodySmall,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                FilledButton.icon(
-                                  onPressed: () => ref
-                                      .read(articlesProvider.notifier)
-                                      .refresh(),
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Fetch Articles'),
-                                ),
-                              ],
+                // Search always shows flat chronological
+                ? _buildArticleList(
+                    _searchResults!,
+                    bookmarkedIds,
+                    bookmarksNotifier,
+                    articleState,
+                    theme,
+                  )
+                : feedFilter != null
+                ? _buildSingleFeedView(
+                    feedFilter,
+                    topicFilter,
+                    bookmarkedIds,
+                    bookmarksNotifier,
+                    articleState,
+                    theme,
+                  )
+                : articlesAsync.when(
+                    data: (articles) {
+                      var visible = articles
+                          .where((a) => !articleState.deletedIds.contains(a.id))
+                          .toList();
+                      if (topicFilter != null) {
+                        visible = visible
+                            .where(
+                              (a) => TopicClassifier.classify(a) == topicFilter,
+                            )
+                            .toList();
+                      }
+                      return RefreshIndicator(
+                        onRefresh: _refreshArticles,
+                        child: _buildArticleList(
+                          visible,
+                          bookmarkedIds,
+                          bookmarksNotifier,
+                          articleState,
+                          theme,
+                          scrollController: _scrollController,
+                          grouping: grouping,
+                          showLoadMore: true,
+                          hasMore: _hasMoreArticles,
+                          isLoadingMore: _isLoadingMore,
+                          onLoadMore: _loadMoreArticles,
+                        ),
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.cloud_off,
+                              size: 48,
+                              color: theme.colorScheme.error,
                             ),
-                          ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Could not load articles',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '$err',
+                              style: theme.textTheme.bodySmall,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: _refreshArticles,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Fetch Articles'),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -366,14 +469,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     ThemeData theme, {
     ScrollController? scrollController,
     ArticleGrouping grouping = ArticleGrouping.chronological,
+    bool showLoadMore = false,
+    bool hasMore = true,
+    bool isLoadingMore = false,
+    VoidCallback? onLoadMore,
+    Future<void> Function()? onEmptyFetch,
   }) {
     if (articles.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.article_outlined,
-                size: 48, color: theme.colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.article_outlined,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
             Text('No articles found', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -383,8 +494,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () =>
-                  ref.read(articlesProvider.notifier).refresh(),
+              onPressed: onEmptyFetch ?? _refreshArticles,
               icon: const Icon(Icons.refresh),
               label: const Text('Fetch Articles'),
             ),
@@ -393,19 +503,43 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       );
     }
 
-    if (grouping != ArticleGrouping.chronological &&
-        scrollController != null) {
-      return _buildGroupedList(articles, bookmarkedIds, bookmarksNotifier,
-          articleState, theme, grouping, scrollController);
+    if (grouping != ArticleGrouping.chronological && scrollController != null) {
+      return _buildGroupedList(
+        articles,
+        bookmarkedIds,
+        bookmarksNotifier,
+        articleState,
+        theme,
+        grouping,
+        scrollController,
+        showLoadMore: showLoadMore,
+        hasMore: hasMore,
+        isLoadingMore: isLoadingMore,
+        onLoadMore: onLoadMore,
+      );
     }
 
     return ListView.builder(
       controller: scrollController,
       padding: const EdgeInsets.only(top: 4, bottom: 16),
-      itemCount: articles.length,
-      itemBuilder: (context, index) =>
-          _buildDismissibleCard(articles[index], bookmarkedIds,
-              bookmarksNotifier, articleState, theme),
+      itemCount: articles.length + (showLoadMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == articles.length) {
+          return _buildLoadMoreFooter(
+            hasMore,
+            isLoadingMore,
+            onLoadMore,
+            theme,
+          );
+        }
+        return _buildDismissibleCard(
+          articles[index],
+          bookmarkedIds,
+          bookmarksNotifier,
+          articleState,
+          theme,
+        );
+      },
     );
   }
 
@@ -416,8 +550,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     ArticleStateData articleState,
     ThemeData theme,
     ArticleGrouping grouping,
-    ScrollController scrollController,
-  ) {
+    ScrollController scrollController, {
+    bool showLoadMore = false,
+    bool hasMore = true,
+    bool isLoadingMore = false,
+    VoidCallback? onLoadMore,
+  }) {
     final sections = _groupArticles(articles, grouping);
 
     return CustomScrollView(
@@ -447,20 +585,139 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _buildDismissibleCard(
-                    entry.value[index], bookmarkedIds, bookmarksNotifier,
-                    articleState, theme),
+                  entry.value[index],
+                  bookmarkedIds,
+                  bookmarksNotifier,
+                  articleState,
+                  theme,
+                ),
                 childCount: entry.value.length,
               ),
             ),
         ],
+        if (showLoadMore)
+          SliverToBoxAdapter(
+            child: _buildLoadMoreFooter(
+              hasMore,
+              isLoadingMore,
+              onLoadMore,
+              theme,
+            ),
+          ),
         const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
       ],
     );
   }
 
+  Widget _buildLoadMoreFooter(
+    bool hasMore,
+    bool isLoadingMore,
+    VoidCallback? onLoadMore,
+    ThemeData theme,
+  ) {
+    if (!hasMore) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text(
+            'No more articles',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: isLoadingMore
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : OutlinedButton.icon(
+                onPressed: onLoadMore,
+                icon: const Icon(Icons.expand_more),
+                label: const Text('Load 50 more'),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSingleFeedView(
+    String feedName,
+    String? topicFilter,
+    Set<String> bookmarkedIds,
+    BookmarksNotifier bookmarksNotifier,
+    ArticleStateData articleState,
+    ThemeData theme,
+  ) {
+    final asyncArticles = ref.watch(singleFeedArticlesProvider(feedName));
+    return asyncArticles.when(
+      data: (articles) {
+        var visible = articles
+            .where((a) => !articleState.deletedIds.contains(a.id))
+            .toList();
+        if (topicFilter != null) {
+          visible = visible
+              .where((a) => TopicClassifier.classify(a) == topicFilter)
+              .toList();
+        }
+        Future<void> refetch() =>
+            ref.refresh(singleFeedArticlesProvider(feedName).future);
+        return RefreshIndicator(
+          onRefresh: refetch,
+          child: _buildArticleList(
+            visible,
+            bookmarkedIds,
+            bookmarksNotifier,
+            articleState,
+            theme,
+            scrollController: _scrollController,
+            onEmptyFetch: refetch,
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cloud_off, size: 48, color: theme.colorScheme.error),
+              const SizedBox(height: 16),
+              Text(
+                'Could not load $feedName',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$err',
+                style: theme.textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () =>
+                    ref.invalidate(singleFeedArticlesProvider(feedName)),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Groups and sorts articles into an ordered map of section → articles.
   Map<String, List<Article>> _groupArticles(
-      List<Article> articles, ArticleGrouping grouping) {
+    List<Article> articles,
+    ArticleGrouping grouping,
+  ) {
     final groups = <String, List<Article>>{};
 
     if (grouping == ArticleGrouping.bySource) {
@@ -513,8 +770,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
         color: theme.colorScheme.errorContainer,
-        child: Icon(Icons.delete_outline,
-            color: theme.colorScheme.onErrorContainer),
+        child: Icon(
+          Icons.delete_outline,
+          color: theme.colorScheme.onErrorContainer,
+        ),
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
@@ -556,11 +815,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Text('Bookmarks',
-                      style: theme.textTheme.titleLarge),
+                  Text('Bookmarks', style: theme.textTheme.titleLarge),
                   const Spacer(),
-                  Text('${bookmarks.length} saved',
-                      style: theme.textTheme.labelMedium),
+                  Text(
+                    '${bookmarks.length} saved',
+                    style: theme.textTheme.labelMedium,
+                  ),
                 ],
               ),
             ),
@@ -568,16 +828,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             Expanded(
               child: bookmarks.isEmpty
                   ? Center(
-                      child: Text('No bookmarks yet',
-                          style: theme.textTheme.bodyMedium),
+                      child: Text(
+                        'No bookmarks yet',
+                        style: theme.textTheme.bodyMedium,
+                      ),
                     )
                   : ListView.builder(
                       controller: scrollController,
                       itemCount: bookmarks.length,
                       itemBuilder: (context, index) {
                         final article = bookmarks[index];
-                        final isRead =
-                            articleState.readIds.contains(article.id);
+                        final isRead = articleState.readIds.contains(
+                          article.id,
+                        );
                         return ArticleCard(
                           article: article,
                           isBookmarked: true,
@@ -622,7 +885,10 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -659,5 +925,7 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SectionHeaderDelegate old) =>
-      title != old.title || count != old.count || isCollapsed != old.isCollapsed;
+      title != old.title ||
+      count != old.count ||
+      isCollapsed != old.isCollapsed;
 }

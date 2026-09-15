@@ -23,6 +23,19 @@ Task-specific guidance for common workflows:
 | Hive storage | [hive/SKILL.md](hive/SKILL.md) | Model changes, adapter regeneration |
 | Riverpod | [riverpod/SKILL.md](riverpod/SKILL.md) | Provider patterns, state management, anti-patterns |
 
+## Common Commands
+
+```bash
+flutter pub get                          # Install / update dependencies
+flutter analyze                          # Static analysis (run before every push)
+flutter test                             # Run all tests
+flutter test test/services/topic_classifier_test.dart   # Run a single test file
+flutter test --plain-name "test name"    # Run a single test by name
+dart run build_runner build --delete-conflicting-outputs   # Regenerate Hive adapters after model changes
+```
+
+Building (see [flutter/SKILL.md](flutter/SKILL.md) for CI details): `flutter build apk|ios|linux|windows`.
+
 ## Requirements
 
 ### State Management & Architecture
@@ -82,7 +95,7 @@ default; enable it and set a bearer token under Settings → Vault Sync.
 - **RSS parsing**: `webfeed` package
 - **HTML rendering**: `flutter_html` for article content with embedded HTML
 - **URL launching**: `url_launcher` + WSL fallback for opening articles in browser
-- **CI/CD**: CodeMagic ([codemagic.yaml](../codemagic.yaml), setup guide in [CODEMAGIC_SETUP.md](../CODEMAGIC_SETUP.md))
+- **CI/CD**: CodeMagic ([codemagic.yaml](../codemagic.yaml), setup guide in [CODEMAGIC_SETUP.md](../CODEMAGIC_SETUP.md)). Triggered manually via [trigger-build.ps1](../trigger-build.ps1) / [trigger-build.sh](../trigger-build.sh) (bash counterpart, for non-Windows use), polled via [check-build.ps1](../check-build.ps1) / [check-build.sh](../check-build.sh). Both read `ApiKey`/`AppId` from a local, gitignored `app.info` file if not passed as flags.
 - **Distribution**: Firebase App Distribution
 - **Linting**: `flutter_lints` via [analysis_options.yaml](../analysis_options.yaml)
 
@@ -118,14 +131,19 @@ lib/
 ├── screens/
 │   ├── feed_screen.dart                   # Main reverse-chron feed + search + bookmarks sheet
 │   ├── article_screen.dart                # Reader mode article view (HTML rendering, selectable text)
-│   └── settings_screen.dart               # Theme toggle, feed management, add custom feeds
+│   ├── settings_screen.dart               # Theme toggle, feed management, add custom feeds
+│   └── feed_discovery_screen.dart         # Paste a site URL, discover its RSS/Atom feed(s)
 ├── services/
 │   ├── news_aggregator_service.dart       # Aggregator with deduplication strategies
 │   ├── vault_client.dart                  # Minimal MCP Streamable HTTP client
+│   ├── feed_discovery_service.dart        # Autodiscovers feed URLs from a site's HTML <link> tags
+│   ├── topic_classifier.dart              # Buckets an article into a topic (RSS categories, then keyword fallback)
 │   └── news_sources/
 │       ├── i_news_source.dart             # INewsSource interface
 │       ├── news_api_source.dart           # NewsAPI.org implementation (future)
 │       └── rss_news_source.dart           # RSS/Atom feed implementation
+├── utils/
+│   └── html_utils.dart                    # HTML entity decoding for feed content
 └── widgets/
     └── article_card.dart                  # Article list item card widget
 ```
@@ -135,6 +153,8 @@ lib/
 - **News source interface**: `INewsSource` in [lib/services/news_sources/i_news_source.dart](../lib/services/news_sources/i_news_source.dart) — implement this to add new sources
 - **Aggregator**: `NewsAggregatorService` fetches from all sources in parallel, deduplicates, and provides filtering (by source count, source name, categories)
 - **Deduplication strategies**: `url`, `title`, `titleSimilarity` (Levenshtein, >85% threshold), `combined` (recommended)
+- **Topic classification**: `TopicClassifier` buckets each article into one of a fixed set of topics (AI & ML, Security, Mobile, etc.), preferring normalized RSS categories and falling back to keyword matching — powers grouping by topic in `FeedScreen`
+- **Feed discovery**: `FeedDiscoveryService` fetches a pasted site URL, parses its HTML for `<link rel="alternate">` feed tags, and returns candidate feeds with sample titles for `FeedDiscoveryScreen`
 - **Providers**: Riverpod providers expose aggregator, bookmarks, feed config, theme, and article cache state
 - **Repositories**: Hive-backed repositories for bookmarks, feed configuration, cached articles, and settings
 
@@ -151,10 +171,18 @@ Current intentional dependencies in `ArticlesNotifier.build()`:
 
 `FeedScreen` uses a `ScrollController` on the main `ListView`. This works because `FeedScreen`'s state stays mounted on the Navigator stack during article navigation. Any transition to `AsyncLoading` in `articlesProvider` would unmount the `ListView` and reset the controller — see the pattern above.
 
+### Combined Feed Cap, Pagination, and Single-Feed Filtering
+
+`articlesProvider` (`ArticlesNotifier`) merges all enabled feeds into one pool, sorts by date, and keeps only the top N (starts at 50). A feed that posts infrequently can be sorted out of that window entirely by busier feeds and never appear — this isn't a bug in that feed's parsing, it's the merge-then-cap design. Two things follow from this:
+
+- **`loadMore()`** increases the window by 50 and re-fetches, without going through `AsyncLoading` (same discipline as the background-fetch pattern above — replacing state with `AsyncLoading` mid-scroll would unmount the `ListView`). `FeedScreen` shows this as a "Load 50 more" footer, and it returns `false` once a larger window stops yielding more articles. The real ceiling is the sum of each enabled feed's own configured "Articles to fetch" limit — raising the window past that sum has nothing further to fetch.
+- **`singleFeedArticlesProvider`** (a `FutureProvider.family<List<Article>, String>` keyed by feed name) fetches one feed directly via its own `RssNewsSource`, bypassing both the combined cap and that feed's configured per-feed limit. `FeedScreen` switches to this provider whenever `feedFilterProvider` is set (via Settings' per-feed tap, or the "Filter by feed" option in the Group & Sort sheet) — filtering the already-capped `articlesProvider` list client-side would silently return nothing for a feed that got squeezed out.
+
 ## Important Notes
 
 - **Before starting any work**: run `git pull` to ensure you are on the latest version of the current branch
+- **Before triggering a CodeMagic build**: commit and push everything you want built. CodeMagic clones the remote branch — it has no visibility into a local working tree or unpushed commits, so "trigger a build" after only local edits silently builds the last pushed commit, not your changes. `trigger-build.sh`/`trigger-build.ps1` now refuse to run unless (a) the working tree is clean and local `HEAD` matches `origin/<Branch>`, and (b) `CHANGELOG.md`'s latest `## x.y.z` entry matches `pubspec.yaml`'s version and has actual notes under it (mirrors the extraction `codemagic.yaml`'s "Create release notes" step uses, so a stale changelog fails the same way it would silently ship). Bypass either check per-run with `-SkipGitCheck` / `-SkipChangelogCheck` (e.g. rebuilding an already-released commit) — don't reach for these by default.
 - Firebase config files (`google-services.json`, `GoogleService-Info.plist`) are gitignored
-- Tests are minimal (only default `widget_test.dart`) — expand as features are built
+- Tests live in `test/` mirroring `lib/` (models, services, utils) plus `widget_test.dart` — expand as features are built
 - After modifying any Hive model, regenerate adapters — see [hive/SKILL.md](hive/SKILL.md)
 - **No API keys needed** for initial release — app uses RSS feeds only

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- Filtering to a single feed — from Settings, or the new "Filter by feed" option in Group & Sort — now fetches that feed directly instead of searching the already-merged article list. The combined feed only keeps the top 50 most recent articles across every enabled source; an infrequently-updated feed's posts could get sorted out of that window entirely by busier feeds, so filtering down to it returned nothing even though the feed itself was healthy.
+- Added a "Load 50 more" control at the bottom of the article list, so articles beyond the initial fetch are reachable instead of a fixed cutoff.
+- Added `trigger-build.sh` / `check-build.sh`, bash counterparts to the existing PowerShell CodeMagic scripts, for triggering and polling builds outside Windows.
+- `trigger-build` (both the bash and PowerShell versions) now refuses to run unless the working tree is committed and pushed to the target branch, and unless `CHANGELOG.md`'s latest entry matches `pubspec.yaml`'s version with real notes under it. CodeMagic builds whatever commit is already on the remote branch — an unpushed local change was silently building stale code with no indication anything was wrong.
+
+---
+
 ## 0.2.2
 
 - First release built for Android. The Android build had never succeeded on CI: Flutter's stable enforces toolchain floors the project sat below, each surfacing only once the previous one cleared - Gradle 8.12 to 8.14.5, Android Gradle Plugin 8.9.1 to 8.13.2, Kotlin 2.1.0 to 2.2.21. `flutter build apk` failed before compiling anything. iOS was unaffected throughout, which is why it went unnoticed.
