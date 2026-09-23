@@ -10,9 +10,12 @@ workflows:
         # Create these groups in CodeMagic UI (Teams > Global variables and secrets)
         - firebase_credentials  # Contains FIREBASE_SERVICE_ACCOUNT, FIREBASE_IOS_APP_ID, FIREBASE_ANDROID_APP_ID, NOTIFICATION_EMAIL
 
+      # iOS signing via Codemagic Code signing identities (not env vars)
       ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.tendimensions.newsreader
+        certificates:
+          - ios_distribution_cert
+        provisioning_profiles:
+          - newsreader_adhoc
 
       # vars:
         # App Store Connect (for future releases)
@@ -227,9 +230,12 @@ workflows:
       groups:
         - firebase_credentials
 
+      # iOS signing via Codemagic Code signing identities (not env vars)
       ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.tendimensions.newsreader
+        certificates:
+          - ios_distribution_cert
+        provisioning_profiles:
+          - newsreader_adhoc
 
       # Pinned, not `stable`. Flutter's stable channel enforces minimum Gradle,
       # AGP and Kotlin versions, and raising them breaks the Android build with
